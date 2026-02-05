@@ -19,11 +19,17 @@ export default function RootLayout({
 
         <footer className="bb-footerWrap">
           <div className="bb-footerBubble">
-            Bracket Battle • Built with Next.js + Supabase
+            <div style={{ fontWeight: 900, opacity: 0.92 }}>
+              Bracket Battle • Built with Next.js + Supabase
+            </div>
+            <div style={{ marginTop: 6, opacity: 0.72, lineHeight: 1.35 }}>
+              Fan-made voting project. Not affiliated with or endorsed by any
+              brand. All trademarks and images belong to their respective
+              owners.
+            </div>
           </div>
         </footer>
       </body>
     </html>
   );
 }
-//alex
