@@ -3,6 +3,8 @@ import HomeHeaderActions from "@/components/HomeHeaderActions";
 import NextRoundTimer from "@/components/NextRoundTimer";
 import { supabase } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 const TZ = "America/New_York";
 
 /** Get current weekday in ET (0=Sun .. 6=Sat) */
@@ -34,6 +36,13 @@ function activeRoundFromDay(now: Date) {
   return 4; // Sat
 }
 
+type Topic = {
+  id: string;
+  title: string | null;
+  starts_at: string | null;
+  current_round?: number | null;
+};
+
 type Entry = {
   id: string;
   name: string;
@@ -50,45 +59,66 @@ type MatchupRow = {
   b_entry: Entry | null;
 };
 
+type VoteRow = {
+  matchup_id: string;
+  choice_entry_id: string;
+};
+
 export default async function Home() {
   const now = new Date();
 
   // ✅ pick most recent topic that has started
-  const { data: topic } = await supabase
+  const { data: topic, error: topicError } = await supabase
     .from("topics")
     .select("*")
     .lte("starts_at", now.toISOString())
     .order("starts_at", { ascending: false })
     .limit(1)
-    .single();
+    .single<Topic>();
 
-  if (!topic) {
+  if (topicError || !topic) {
     return <main className="bb-page">No active topic</main>;
   }
 
   const scheduledRound = activeRoundFromDay(now);
+  const dbRound = topic.current_round ?? 1;
+  const roundToRender = Math.min(scheduledRound, dbRound);
+
+  // You can swap this to your actual voting-day logic later
   const votingOpen = true;
 
-  const { data: matchups } = await supabase
+  const { data: matchupsData, error: matchupsError } = await supabase
     .from("matchups")
     .select(
       `
-      id,
-      round,
-      matchup_index,
-      a_entry:entries!matchups_a_entry_id_fkey ( id, name, seed, description, image_url ),
-      b_entry:entries!matchups_b_entry_id_fkey ( id, name, seed, description, image_url )
-    `
+        id,
+        round,
+        matchup_index,
+        a_entry:entries!matchups_a_entry_id_fkey ( id, name, seed, description, image_url ),
+        b_entry:entries!matchups_b_entry_id_fkey ( id, name, seed, description, image_url )
+      `
     )
     .eq("topic_id", topic.id)
     .order("round", { ascending: true })
     .order("matchup_index", { ascending: true });
 
-  const baseMatchups = (matchups ?? []) as MatchupRow[];
+  if (matchupsError) {
+    return <main className="bb-page">Error loading matchups</main>;
+  }
+
+  // Force stable typing for TS (avoids “unknown/never” headaches)
+  const baseMatchups: MatchupRow[] = (matchupsData ?? []).map((m: any) => ({
+    id: String(m.id),
+    round: Number(m.round),
+    matchup_index: Number(m.matchup_index),
+    a_entry: m.a_entry ?? null,
+    b_entry: m.b_entry ?? null,
+  }));
+
   const matchupIds = baseMatchups.map((m) => m.id);
 
   // ===== counts for bars/results =====
-  const { data: voteRows } = await supabase
+  const { data: voteRowsData, error: votesError } = await supabase
     .from("votes")
     .select("matchup_id, choice_entry_id")
     .in(
@@ -96,8 +126,14 @@ export default async function Home() {
       matchupIds.length ? matchupIds : ["00000000-0000-0000-0000-000000000000"]
     );
 
+  if (votesError) {
+    return <main className="bb-page">Error loading votes</main>;
+  }
+
+  const voteRows = (voteRowsData ?? []) as VoteRow[];
+
   const counts: Record<string, number> = {};
-  for (const v of voteRows ?? []) {
+  for (const v of voteRows) {
     const key = `${v.matchup_id}:${v.choice_entry_id}`;
     counts[key] = (counts[key] ?? 0) + 1;
   }
@@ -163,7 +199,6 @@ export default async function Home() {
       if (!target) continue;
 
       // Only override if we actually have something to feed forward
-      // (this avoids wiping any DB-filled values you might have later)
       if (prevA) target.a_entry = prevA;
       if (prevB) target.b_entry = prevB;
     }
@@ -175,7 +210,7 @@ export default async function Home() {
       <div className="bb-banner">
         {/* LEFT */}
         <div className="bb-bannerLeft">
-          <div className="bb-roundBig">Round {scheduledRound}</div>
+          <div className="bb-roundBig">Round {roundToRender}</div>
         </div>
 
         {/* CENTER */}
@@ -204,7 +239,7 @@ export default async function Home() {
       </div>
 
       <BracketBoard
-        currentRound={scheduledRound}
+        currentRound={roundToRender}
         votingOpen={votingOpen}
         votedMatchupIds={[]} // client determines this via voter_id
         matchups={derivedMatchups as any}
