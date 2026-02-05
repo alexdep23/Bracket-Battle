@@ -2,30 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== Brand palette + banner tuning knobs ===== */
+/* =========================================================
+   THEME
+   ========================================================= */
 :root{
   --bg0:#0b1020;
   --bg1:#101a33;
   --ink:#eaf0ff;
   --muted:rgba(234,240,255,.72);
+
   --card:rgba(255,255,255,.10);
   --card2:rgba(255,255,255,.14);
   --stroke:rgba(255,255,255,.22);
+
   --accent:#7aa6ff;
   --accent2:#8c7cff;
 
-  /* ===== YOU EDIT THESE 4 VALUES ONLY (DESKTOP) ===== */
+  /* DESKTOP BANNER KNOBS */
   --logoY: 30px;       /* negative goes UP, positive goes DOWN */
   --topicY: -190px;    /* tournament title up/down */
   --metaY: -190px;     /* starts + voting status up/down */
-  --logoH: 450px;      /* logo height (size) */
+  --logoH: 450px;      /* logo height */
 }
 
-html, body{ height:100%; }
+html, body { height: 100%; }
 
 body{
   margin:0;
-  color:var(--ink);
+  color: var(--ink);
   background:
     radial-gradient(1200px 700px at 20% 30%, rgba(122,166,255,.20), transparent 60%),
     radial-gradient(900px 600px at 85% 25%, rgba(140,124,255,.18), transparent 55%),
@@ -34,16 +38,19 @@ body{
   font-family: ui-serif, Georgia, "Times New Roman", serif;
 }
 
-/* ===== Page ===== */
+button{ font-family: inherit; cursor: pointer; }
+
+/* =========================================================
+   PAGE WRAP
+   ========================================================= */
 .bb-page{
   min-height:100vh;
   padding:18px 18px 26px;
 }
 
-/* =========================
-   BANNER (CLEAN + MOVABLE)
-   ========================= */
-
+/* =========================================================
+   BANNER
+   ========================================================= */
 .bb-banner{
   position:relative;
   border-radius:22px;
@@ -55,7 +62,7 @@ body{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  overflow:hidden; /* prevents banner elements from covering the bracket below */
+  overflow:hidden;
 }
 
 /* left */
@@ -69,11 +76,10 @@ body{
   font-size:36px;
   font-weight:900;
   letter-spacing:.02em;
-  transform: translateY(-6px);
-  transform: translateX(50px); /* negative = up, positive = down */
+  transform: translate(50px, -6px); /* was two transforms; this combines them */
 }
 
-/* center (stack) */
+/* center */
 .bb-bannerCenter{
   position:absolute;
   left:50%;
@@ -89,18 +95,14 @@ body{
   justify-content:center;
   gap:6px;
 
-  pointer-events:none;   /* center can’t block clicks */
-}
-.bb-bannerCenter *{
   pointer-events:none;
 }
+.bb-bannerCenter *{ pointer-events:none; }
 
-/* 3 independently movable blocks */
 .bb-bannerLogo{ transform: translateY(var(--logoY)); }
 .bb-bannerTopic{ transform: translateY(var(--topicY)); }
 .bb-bannerMeta{ transform: translateY(var(--metaY)); }
 
-/* logo image (single source of truth) */
 .bb-logoImg{
   height: var(--logoH);
   width: auto;
@@ -108,13 +110,13 @@ body{
   filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
 }
 
-/* title + meta styling */
 .bb-tourTitle{
   margin-top:8px;
   font-size:14px;
   letter-spacing:.45em;
   opacity:.85;
 }
+
 .bb-meta{
   margin-top:10px;
   font-size:14px;
@@ -136,7 +138,7 @@ body{
   z-index:2;
 }
 
-/* icon button */
+/* icon buttons */
 .bb-iconBtn{
   width:44px;
   height:44px;
@@ -156,8 +158,17 @@ body{
   color: rgba(234,240,255,.9);
   text-decoration:none;
 }
+.bb-iconBtnEmoji{
+  font-size:18px;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
 
-/* ===== Board ===== */
+/* =========================================================
+   BOARD
+   ========================================================= */
 .bb-boardWrap{
   margin-top:18px;
   border-radius:22px;
@@ -170,6 +181,7 @@ body{
 
 .bb-board{ display:flex; gap:26px; min-width:1200px; }
 .bb-col{ width:360px; }
+
 .bb-colHeader{
   font-weight:900;
   letter-spacing:.35em;
@@ -177,7 +189,17 @@ body{
   opacity:.85;
   margin:0 0 10px 10px;
 }
-.bb-colBody{ position:relative; }
+
+.bb-colBody{
+  position:relative;
+  pointer-events:none; /* prevents invisible column layer stealing clicks */
+}
+
+/* Re-enable clicks on actual bubbles */
+.bb-bubble,
+.bb-bubble *{
+  pointer-events:auto;
+}
 
 /* decorative bands */
 .bb-band{
@@ -191,7 +213,9 @@ body{
   z-index:0;
 }
 
-/* ===== Bubble ===== */
+/* =========================================================
+   BUBBLE
+   ========================================================= */
 .bb-bubble{
   position:relative;
   border-radius:999px;
@@ -202,7 +226,6 @@ body{
   z-index:1;
 }
 
-/* fill is always behind and never catches clicks */
 .bb-bubbleFill{
   position:absolute;
   inset:0;
@@ -212,7 +235,6 @@ body{
   pointer-events:none;
 }
 
-/* inner grid */
 .bb-bubbleInner{
   position:relative;
   z-index:1;
@@ -224,13 +246,11 @@ body{
   padding:10px 10px;
   pointer-events:none;
 }
-
-/* Buttons inside bubble must be clickable */
 .bb-bubbleInner button{
   pointer-events:auto !important;
 }
 
-/* Seed column */
+/* Seed */
 .bb-seed{
   display:flex;
   flex-direction:column;
@@ -251,19 +271,7 @@ body{
 }
 .bb-seedNudge{ transform: translate(-11px, -9px); }
 
-/* Right column */
-.bb-right{
-  height:100%;
-  display:flex;
-  justify-content:flex-end;
-  align-items:center;
-  position:relative;
-  z-index:2;
-  pointer-events:auto;
-}
-.bb-rightNudge{ transform: translate(0px, -9px); }
-
-/* Center column */
+/* Center */
 .bb-titleWrap{
   height:100%;
   min-width:0;
@@ -274,7 +282,6 @@ body{
   text-align:left;
   pointer-events:auto;
 }
-
 .bb-titleRow{
   position:relative;
   width:100%;
@@ -283,7 +290,6 @@ body{
   justify-content:flex-start;
   pointer-events:auto;
 }
-
 .bb-teamName{
   width:100%;
   min-width:0;
@@ -295,6 +301,18 @@ body{
   padding-right:20px;
   text-align:left;
 }
+
+/* Right */
+.bb-right{
+  height:100%;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  position:relative;
+  z-index:2;
+  pointer-events:auto;
+}
+.bb-rightNudge{ transform: translate(0px, -9px); }
 
 /* Meta row */
 .bb-metaRow{
@@ -313,7 +331,6 @@ body{
   padding:0 6px;
   gap:40px;
 }
-
 .bb-countText{
   opacity:.82;
   transform: translateX(-7px) translateY(-3px);
@@ -324,6 +341,7 @@ body{
   transform: translateX(-7px) translateY(-3px);
 }
 
+/* Vote disabled pill */
 .bb-voteDisabled{
   padding:6px 12px;
   border-radius:999px;
@@ -331,9 +349,14 @@ body{
   background: rgba(255,255,255,.08);
   opacity:.55;
   font-weight:800;
+  font-size:13px;
+  min-height:32px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
 }
 
-/* Info button */
+/* Info button inside bubble */
 .bb-infoBtn{
   position:absolute;
   right:-30px;
@@ -357,45 +380,71 @@ body{
 .bb-infoBtn:hover{
   border-color:#ffffff;
   background: rgba(255,255,255,0.15);
-  color:#ffffff;
 }
 
 /* Hide info on placeholder/TBD bubbles */
-.bb-bubble.placeholder .bb-infoBtn{
-  display:none !important;
-}
-
-/* Keep bubble width consistent, hide vote content on TBD */
+.bb-bubble.placeholder .bb-infoBtn{ display:none !important; }
 .bb-bubble.placeholder .bb-right{
-  visibility: hidden;   /* keeps column width */
-  pointer-events: none;
+  visibility:hidden; /* keeps layout */
+  pointer-events:none;
 }
-
-/* Placeholder TBD text consistency */
 .bb-bubble.placeholder .bb-teamName{
-  font-size: 14px !important;
-  font-weight: 900 !important;
-  opacity: 0.95 !important;
-  font-style: normal !important;
-  letter-spacing: 0 !important;
+  font-size:14px !important;
+  font-weight:900 !important;
+  opacity:.95 !important;
+  letter-spacing:0 !important;
 }
 
-/* =========================
-   MODAL (INFO / OVERLAY)
-   ========================= */
+/* Title-as-button (no white box) */
+.bb-teamNameBtn{
+  appearance:none;
+  -webkit-appearance:none;
+  background: transparent !important;
+  border:0 !important;
+  outline:none;
+  padding:0 !important;
+  margin:0 !important;
+  text-align:left;
+  width:100%;
+  color:inherit;
+  font:inherit;
+  line-height:inherit;
+  pointer-events:auto;
+  cursor:pointer;
+}
+.bb-teamNameBtn:focus-visible{
+  outline: 2px solid rgba(255,255,255,.35);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
 
+/* =========================================================
+   NEXT ROUND TIMER (INLINE)
+   ========================================================= */
+.bb-nextRound{
+  display:inline-flex;
+  align-items:baseline;
+  gap:6px;
+}
+.bb-nextRoundLabel{ opacity:.85; font-weight:800; }
+.bb-nextRoundValue{ font-weight:950; letter-spacing:.06em; }
+.bb-nextRoundTz{ opacity:.7; font-weight:800; font-size:12px; }
+
+/* =========================================================
+   MODAL (INFO)
+   ========================================================= */
 .bb-modalOverlay{
   position: fixed;
   inset: 0;
   z-index: 2147483646 !important;
-  background: rgba(0, 0, 0, 0.78) !important;
+  background: rgba(0,0,0,.94) !important;
   backdrop-filter: blur(18px) !important;
   -webkit-backdrop-filter: blur(18px) !important;
 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
   pointer-events:auto !important;
 }
 
@@ -410,9 +459,10 @@ body{
   border-radius: 18px !important;
   border: 1px solid rgba(255,255,255,.18) !important;
 
-  background: linear-gradient(180deg, rgba(14,18,34,.94), rgba(10,13,26,.92)) !important;
+  background: rgba(10,13,26,1) !important;
   box-shadow: 0 24px 80px rgba(0,0,0,.70) !important;
 
+  isolation:isolate !important;
   pointer-events:auto !important;
 }
 
@@ -443,27 +493,6 @@ body{
 }
 
 .bb-modalBody{ padding:14px 16px 10px; }
-.bb-modalPills{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-
-.bb-pill{
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-  font-size:12px;
-  font-weight:800;
-  opacity:.95;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.06);
-}
-
-.bb-modalImage{
-  width:100%;
-  height:220px;
-  object-fit:cover;
-  border-radius:14px;
-  margin:10px 0 12px;
-  display:block;
-}
 
 .bb-modalSection{
   margin-top:10px;
@@ -508,82 +537,13 @@ body{
   background: rgba(255,255,255,.10);
 }
 
-/* Decorative layers must never eat clicks */
-.bb-band,
-.bb-bubbleFill{
-  pointer-events: none !important;
-}
-
-button{ font-family: inherit; cursor: pointer; }
-
-/* FINAL ROUND button sizing tweaks (optional; keep if you want) */
-.bb-col:nth-child(4) button{
-  padding: 6px 10px !important;
-  font-size: 12px !important;
-  min-height: 28px !important;
-}
-
-/* Vote disabled pill */
-.bb-voteDisabled{
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 800;
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-}
-
-/* Make title button look like plain text (no white box) */
-.bb-teamNameBtn{
-  appearance: none;
-  -webkit-appearance: none;
-  background: transparent !important;
-  border: 0 !important;
-  outline: none;
-  padding: 0 !important;
-  margin: 0 !important;
-  text-align: left;
-  width: 100%;
-  color: inherit;
-  font: inherit;
-  line-height: inherit;
-  pointer-events: auto;
-  cursor: pointer;
-}
-.bb-teamNameBtn:focus{ outline: none; }
-.bb-teamNameBtn:focus-visible{
-  outline: 2px solid rgba(255,255,255,.35);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-/* Prevent large invisible column layers from stealing clicks */
-.bb-colBody{
-  pointer-events: none;
-}
-
-/* Re-enable clicks on actual bubbles */
-.bb-bubble,
-.bb-bubble *{
-  pointer-events: auto;
-}
-
-/* Next round timer inline styling */
-.bb-nextRound{
-  display:inline-flex;
-  align-items:baseline;
-  gap:6px;
-}
-.bb-nextRoundLabel{ opacity:.85; font-weight:800; }
-.bb-nextRoundValue{ font-weight:950; letter-spacing:.06em; }
-.bb-nextRoundTz{ opacity:.7; font-weight:800; font-size:12px; }
-
-/* Site Footer */
+/* =========================================================
+   FOOTER
+   ========================================================= */
 .bb-site{ min-height:100vh; display:flex; flex-direction:column; }
 .bb-siteMain{ flex:1; }
 .bb-footerWrap{ padding:14px 18px 18px; }
+
 .bb-footerBubble{
   width:98%;
   border-radius:18px;
@@ -597,228 +557,8 @@ button{ font-family: inherit; cursor: pointer; }
 }
 
 /* =========================================================
-   MOBILE OVERRIDES (ONE PLACE ONLY)
+   ARCHIVE (BUBBLE TILES)
    ========================================================= */
-@media (max-width: 768px){
-  /* Stop page-level sideways scroll */
-  html, body{ overflow-x: hidden; }
-
-  /* Board container: no horizontal scroll on mobile */
-  .bb-boardWrap{
-    overflow-x: hidden !important;
-    padding: 12px !important;
-  }
-
-  /* Remove the desktop forced wide board */
-  .bb-board{
-    min-width: 0 !important;
-    width: 100% !important;
-    gap: 0 !important;
-  }
-
-  /* One column fits screen */
-  .bb-col{ width: 100% !important; }
-
-  /* Round picker */
-  .bb-mobileRounds{
-    display: flex;
-    gap: 10px;
-    margin: 0 0 12px 0;
-    padding: 6px;
-    border-radius: 14px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.12);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-
-    position: sticky;
-    top: 10px;
-    z-index: 2; /* keep low; modal will always win */
-  }
-
-  .bb-mobileRoundBtn{
-    flex: 1;
-    height: 40px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,.14);
-    background: rgba(255,255,255,.06);
-    color: rgba(234,240,255,.9);
-    font-weight: 900;
-    font-size: 13px;
-    letter-spacing: .10em;
-  }
-
-  .bb-mobileRoundBtn.active{
-    border-color: rgba(255,255,255,.28);
-    background: rgba(255,255,255,.12);
-  }
-
-  /* Drop the ROUND label slightly */
-  .bb-colHeader{
-    margin-top: 10px !important;
-    margin-left: 6px !important;
-  }
-
-  /* ---------- Banner: symmetric mobile card ---------- */
-  .bb-banner{
-    display:flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 10px !important;
-    min-height: auto !important;
-    padding: 14px 14px 14px !important;
-    text-align: center;
-  }
-
-  /* Make children flow normally (no absolute center) */
-  .bb-bannerCenter{
-    position: relative !important;
-    left: auto !important;
-    top: auto !important;
-    transform: none !important;
-    width: 100% !important;
-    gap: 6px !important;
-  }
-
-  /* Center Round text and buttons */
-  .bb-bannerLeft{
-    width: 100% !important;
-    justify-content: center !important;
-  }
-  .bb-roundBig{
-    font-size: 22px !important;
-    width: 100% !important;
-    text-align: center !important;
-    transform: translateX(-5px)
-  }
-
-  .bb-bannerRight{
-    width: 100% !important;
-    justify-content: center !important;
-    gap: 10px !important;
-  }
-
-  /* ===== Archive bubble tiles ===== */
-.bb-archiveWrap {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 18px 18px 40px;
-}
-
-.bb-archiveList {
-  display: grid;
-  gap: 14px;
-}
-
-.bb-archiveBubbleLink {
-  display: block;
-  text-decoration: none;
-}
-
-.bb-archiveBubble {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-
-  border-radius: 999px;
-  padding: 16px 18px;
-
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(10px);
-
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
-}
-
-.bb-archiveBubble:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.22);
-}
-
-.bb-archiveBubbleLeft {
-  min-width: 0;
-}
-
-.bb-archiveBubbleKicker {
-  letter-spacing: 0.18em;
-  font-size: 12px;
-  opacity: 0.75;
-  font-weight: 800;
-}
-
-.bb-archiveBubbleTitle {
-  margin-top: 2px;
-  font-weight: 900;
-  font-size: 18px;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.96);
-
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 70vw;
-}
-
-.bb-archiveBubbleMeta {
-  margin-top: 2px;
-  font-size: 13px;
-  opacity: 0.8;
-}
-
-.bb-archiveBubbleRight {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.bb-archivePill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 28px;
-  padding: 0 12px;
-  border-radius: 999px;
-
-  font-weight: 900;
-  letter-spacing: 0.16em;
-  font-size: 12px;
-
-  color: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.10);
-}
-
-.bb-archivePillMuted {
-  opacity: 0.85;
-}
-
-.bb-archiveArrow {
-  font-size: 18px;
-  opacity: 0.85;
-}
-
-.bb-debug {
-  margin: 18px 0;
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(0,0,0,0.25);
-  border: 1px solid rgba(255,255,255,0.12);
-  overflow: auto;
-  color: white;
-}
-
-.bb-empty {
-  margin-top: 18px;
-  opacity: 0.85;
-}
-
-
-/* ===== Archive tiles (bubble style) ===== */
 .bb-archiveGrid{
   max-width: 1200px;
   margin: 18px auto 0;
@@ -827,7 +567,6 @@ button{ font-family: inherit; cursor: pointer; }
   grid-template-columns: 1fr;
   gap: 14px;
 }
-
 @media (min-width: 900px){
   .bb-archiveGrid{
     grid-template-columns: 1fr 1fr;
@@ -836,13 +575,13 @@ button{ font-family: inherit; cursor: pointer; }
 }
 
 .bb-archiveTile{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 16px 18px;
-  border-radius: 999px;
-  text-decoration: none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:16px 18px;
+  border-radius:999px;
+  text-decoration:none;
 
   background: rgba(255,255,255,0.12);
   border: 1px solid rgba(255,255,255,0.18);
@@ -856,10 +595,10 @@ button{ font-family: inherit; cursor: pointer; }
 }
 
 .bb-archiveTileInner{
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
 }
 
 .bb-archiveTitle{
@@ -868,7 +607,7 @@ button{ font-family: inherit; cursor: pointer; }
   letter-spacing: 0.06em;
   font-size: 14px;
   white-space: nowrap;
-  overflow: hidden;
+  overflow:hidden;
   text-overflow: ellipsis;
 }
 
@@ -887,10 +626,104 @@ button{ font-family: inherit; cursor: pointer; }
   opacity: 0.9;
 }
 
+/* =========================================================
+   MOBILE OVERRIDES
+   ========================================================= */
+@media (max-width: 768px){
+  html, body{ overflow-x: hidden; }
 
-  /* Mobile logo tuning (ONLY on mobile; desktop knobs remain) */
+  .bb-boardWrap{
+    overflow-x: hidden !important;
+    padding: 12px !important;
+  }
+
+  .bb-board{
+    min-width: 0 !important;
+    width: 100% !important;
+    gap: 0 !important;
+  }
+
+  .bb-col{ width: 100% !important; }
+
+  /* Round picker */
+  .bb-mobileRounds{
+    display:flex;
+    gap:10px;
+    margin:0 0 12px 0;
+    padding:6px;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.12);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    position: sticky;
+    top: 10px;
+    z-index: 1;
+  }
+
+  .bb-mobileRoundBtn{
+    flex:1;
+    height:40px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.06);
+    color: rgba(234,240,255,.9);
+    font-weight:900;
+    font-size:13px;
+    letter-spacing:.10em;
+  }
+
+  .bb-mobileRoundBtn.active{
+    border-color: rgba(255,255,255,.28);
+    background: rgba(255,255,255,.12);
+  }
+
+  .bb-colHeader{
+    margin-top: 10px !important;
+    margin-left: 6px !important;
+  }
+
+  /* Banner: stacked */
+  .bb-banner{
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    min-height: auto !important;
+    padding: 14px !important;
+    text-align: center;
+  }
+
+  .bb-bannerCenter{
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    gap: 6px !important;
+  }
+
+  .bb-bannerLeft{
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .bb-roundBig{
+    font-size: 22px !important;
+    width: 100% !important;
+    text-align: center !important;
+    transform: translate(-5px, 0px) !important;
+  }
+
+  .bb-bannerRight{
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 10px !important;
+  }
+
+  /* Mobile logo tuning */
   :root{
-    --logoH: 280px;   /* bigger logo on mobile */
+    --logoH: 280px;
     --logoY: 0px;
     --topicY: -60px;
     --metaY: -52px;
@@ -906,13 +739,10 @@ button{ font-family: inherit; cursor: pointer; }
     gap: 8px !important;
     flex-wrap: wrap;
     justify-content: center;
-    text-align: center;
   }
 
-  /* ---------- Footer: symmetric ---------- */
-  .bb-footerWrap{
-    padding: 12px 16px 16px !important;
-  }
+  /* Footer */
+  .bb-footerWrap{ padding: 12px 16px 16px !important; }
 
   .bb-footerBubble{
     width: 100% !important;
@@ -922,10 +752,8 @@ button{ font-family: inherit; cursor: pointer; }
     box-sizing: border-box !important;
   }
 
-  /* Modal sizing polish on mobile (prevents “skinny column” look) */
-  .bb-modalOverlay{
-    padding: 14px !important;
-  }
+  /* Modal sizing */
+  .bb-modalOverlay{ padding: 14px !important; }
 
   .bb-modalCard{
     width: 94vw !important;
@@ -935,97 +763,9 @@ button{ font-family: inherit; cursor: pointer; }
     text-align: left !important;
   }
 
-  .bb-modalTitle,
-  .bb-modalText{
-    text-align: left !important;
-    overflow-wrap: anywhere !important;
-  }
-
-  .bb-modalHeader,
-  .bb-modalBody,
-  .bb-modalFooter{
-    padding-left: 14px !important;
-    padding-right: 14px !important;
-    box-sizing: border-box !important;
-  }
-
-  /* KEY FIX: when modal is open, hide the sticky round picker entirely */
+  /* When modal open, hide sticky rounds */
   body.bb-modalOpen .bb-mobileRounds{
     visibility: hidden !important;
     pointer-events: none !important;
-  }
-}
-/* === Modal should NOT show anything behind it (mobile + desktop) === */
-.bb-modalOverlay{
-  background: rgba(0,0,0,.86) !important; /* darker than .78 */
-  backdrop-filter: blur(18px) !important;
-  -webkit-backdrop-filter: blur(18px) !important;
-}
-
-/* Make the card fully opaque (no bleed-through) */
-.bb-modalCard{
-  background: linear-gradient(
-    180deg,
-    rgba(14,18,34,1),
-    rgba(10,13,26,1)
-  ) !important;
-}
-@media (max-width: 768px){
-  .bb-mobileRounds{
-    z-index: 1 !important;
-  }
-  .bb-modalOverlay{
-    z-index: 2147483646 !important;
-  }
-  .bb-modalCard{
-    z-index: 2147483647 !important;
-  }
-}
-/* === Make modal hide EVERYTHING behind it (bubbles included) === */
-.bb-modalOverlay{
-  /* crank this up so nothing shows through */
-  background: rgba(0,0,0,.94) !important;   /* was ~.78/.86 */
-  backdrop-filter: blur(18px) !important;
-  -webkit-backdrop-filter: blur(18px) !important;
-}
-
-/* Keep the card fully opaque too */
-.bb-modalCard{
-  background: rgba(10,13,26,1) !important;  /* solid base */
-  isolation: isolate !important;            /* prevents weird blending */
-}
-/* =========================================================
-   MODAL MUST SIT ABOVE *ALL* BUBBLES (mobile + desktop)
-   ========================================================= */
-
-/* Modal always wins */
-.bb-modalOverlay{
-  z-index: 2147483646 !important;
-}
-.bb-modalCard{
-  z-index: 2147483647 !important;
-}
-
-/* Explicitly LOWER everything interactive underneath */
-.bb-boardWrap,
-.bb-board,
-.bb-col,
-.bb-colBody,
-.bb-bubble,
-.bb-bubbleInner,
-.bb-bubbleFill{
-  z-index: 0 !important;
-}
-
-/* Mobile-specific safety: bubbles can NEVER float above modal */
-@media (max-width: 768px){
-  .bb-bubble{
-    position: relative !important;
-    z-index: 0 !important;
-  }
-
-  /* Round selector already handled, keep it low */
-  .bb-mobileRounds{
-    z-index: 1 !important;
   }
 }

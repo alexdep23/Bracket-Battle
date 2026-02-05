@@ -18,13 +18,10 @@ export default function HomeHeaderActions() {
   return (
     <>
       {/* Archive */}
-      <Link
-        href="/archive"
-        className="bb-iconBtn"
-        aria-label="Archive"
-        style={{ color: "inherit", textDecoration: "none" }}
-      >
-        🕒
+      <Link href="/archive" className="bb-iconBtn" aria-label="Archive">
+        <span className="bb-iconBtnEmoji" aria-hidden="true">
+          🗂️
+        </span>
       </Link>
 
       {/* Info */}
@@ -33,9 +30,10 @@ export default function HomeHeaderActions() {
         className="bb-iconBtn"
         aria-label="Info"
         onClick={() => setOpen(true)}
-        style={{ color: "inherit" }}
       >
-        i
+        <span className="bb-iconBtnEmoji" aria-hidden="true">
+          ℹ️
+        </span>
       </button>
 
       {open ? (
@@ -62,12 +60,18 @@ export default function HomeHeaderActions() {
             </div>
 
             <div className="bb-modalBody">
-              <div className="bb-modalSection" style={{ borderTop: "none", paddingTop: 0 }}>
+              <div
+                className="bb-modalSection"
+                style={{ borderTop: "none", paddingTop: 0 }}
+              >
                 <div className="bb-modalLabel">Schedule</div>
                 <div className="bb-modalText">
-                  Round 1: Sun–Mon<br />
-                  Round 2: Tue–Wed<br />
-                  Round 3: Thu–Fri<br />
+                  Round 1: Sun–Mon
+                  <br />
+                  Round 2: Tue–Wed
+                  <br />
+                  Round 3: Thu–Fri
+                  <br />
                   Final: Saturday
                 </div>
               </div>
@@ -75,9 +79,11 @@ export default function HomeHeaderActions() {
               <div className="bb-modalSection">
                 <div className="bb-modalLabel">Rules</div>
                 <div className="bb-modalText">
-                  • Voting is always open for the current round.<br />
-                  • You can vote once per matchup (then that matchup locks for you).<br />
-                  • Results show after you vote in that matchup.
+                  • Voting is always open for the current round.
+                  <br />
+                  • You can vote once per matchup (then that matchup locks for
+                  you).
+                  <br />• Results show after you vote in that matchup.
                 </div>
               </div>
 
@@ -87,7 +93,11 @@ export default function HomeHeaderActions() {
                   Want a theme idea or found a bug? Email{" "}
                   <a
                     href="mailto:bracketbattle88@gmail.com"
-                    style={{ textDecoration: "underline", color: "inherit", fontWeight: 900 }}
+                    style={{
+                      textDecoration: "underline",
+                      color: "inherit",
+                      fontWeight: 900,
+                    }}
                   >
                     bracketbattle88@gmail.com
                   </a>
