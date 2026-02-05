@@ -165,6 +165,17 @@ button{ font-family: inherit; cursor: pointer; }
   align-items:center;
   justify-content:center;
 }
+.bb-iconBtn{
+  font-size: 18px;     /* forces same glyph size */
+  line-height: 1;      /* removes tiny vertical differences */
+}
+
+.bb-iconGlyph{
+  display: block;      /* makes Link + button render identically */
+  transform: translateY(-1px); /* tiny optical centering */
+}
+
+
 
 /* =========================================================
    BOARD
@@ -560,7 +571,7 @@ button{ font-family: inherit; cursor: pointer; }
    ARCHIVE (BUBBLE TILES)
    ========================================================= */
 .bb-archiveGrid{
-  max-width: 1200px;
+  max-width: none;
   margin: 18px auto 0;
   padding: 0 18px 18px;
   display: grid;
@@ -768,4 +779,21 @@ button{ font-family: inherit; cursor: pointer; }
     visibility: hidden !important;
     pointer-events: none !important;
   }
+}
+/* ARCHIVE: make the single bubble span the content width */
+.bb-page a {
+  display: block;
+}
+
+/* if your archive bubble uses this class name (common in your CSS) */
+.bb-archiveBubble,
+.bb-archiveTile {
+  width: 95%;
+}
+
+/* ensure any archive wrapper doesn't cap width */
+.bb-archiveWrap,
+.bb-archiveGrid {
+  max-width: none;
+  width: 100%;
 }
