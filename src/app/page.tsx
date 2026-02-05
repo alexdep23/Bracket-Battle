@@ -1,58 +1,51 @@
+// src/app/page.tsx
 import BracketBoard from "@/components/BracketBoard";
 import HomeHeaderActions from "@/components/HomeHeaderActions";
 import NextRoundTimer from "@/components/NextRoundTimer";
 import { supabase } from "@/lib/supabase";
-import { cookies } from "next/headers";
 
 const TZ = "America/New_York";
-const VOTER_COOKIE = "bb_voter_id";
 
-/** "YYYY-MM-DD" in a specific timezone */
-function tzDayKey(date: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
+/** ET weekday: Sun=0 ... Sat=6 */
+function getETDay(now: Date) {
+  const wd = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    weekday: "short",
+  }).format(now);
 
-  const y = parts.find((p) => p.type === "year")?.value ?? "1970";
-  const m = parts.find((p) => p.type === "month")?.value ?? "01";
-  const d = parts.find((p) => p.type === "day")?.value ?? "01";
-  return `${y}-${m}-${d}`;
+  const map: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+
+  return map[wd] ?? now.getDay();
 }
 
-/** Days difference between two dates, comparing their calendar day in TZ */
-function diffDaysInTZ(a: Date, b: Date, timeZone: string) {
-  const aKey = tzDayKey(a, timeZone);
-  const bKey = tzDayKey(b, timeZone);
-
-  const [ay, am, ad] = aKey.split("-").map(Number);
-  const [by, bm, bd] = bKey.split("-").map(Number);
-
-  const aUTC = Date.UTC(ay, am - 1, ad);
-  const bUTC = Date.UTC(by, bm - 1, bd);
-
-  return Math.floor((aUTC - bUTC) / 86400000);
-}
-
-function roundFromStart(now: Date, startsAt: Date) {
-  const days = diffDaysInTZ(now, startsAt, TZ);
-
-  if (days <= 1) return 1;
-  if (days <= 3) return 2;
-  if (days <= 5) return 3;
+/** Round schedule in ET:
+ *  Round 1: Sun–Mon
+ *  Round 2: Tue–Wed
+ *  Round 3: Thu–Fri
+ *  Final:   Sat
+ */
+function activeRoundFromDay(now: Date) {
+  const day = getETDay(now);
+  if (day === 0 || day === 1) return 1;
+  if (day === 2 || day === 3) return 2;
+  if (day === 4 || day === 5) return 3;
   return 4;
 }
 
 export default async function Home() {
-  const now = new Date();
-
-  // ✅ Auto-pick the "current" topic: most recent that already started
+  // 1) Get active topic (your current approach)
   const { data: topic } = await supabase
     .from("topics")
     .select("*")
-    .lte("starts_at", now.toISOString())
+    .eq("status", "active")
     .order("starts_at", { ascending: false })
     .limit(1)
     .single();
@@ -61,12 +54,24 @@ export default async function Home() {
     return <main className="bb-page">No active topic</main>;
   }
 
-  const startsAt = new Date(topic.starts_at);
-  const currentRound = roundFromStart(now, startsAt);
+  // 2) Determine current round from ET (no manual flips)
+  const scheduledRound = activeRoundFromDay(new Date());
 
-  // ✅ Auto rounds → no manual open/close needed
-  const votingOpen = true;
+  // 3) Auto-advance DB to match scheduled round (safe if function exists)
+  //    If the function is missing or errors, page still renders.
+  try {
+    const { error } = await supabase.rpc("advance_topic_to_round", {
+      topic_id: topic.id,
+      target_round: scheduledRound,
+    });
+    if (error) {
+      console.warn("advance_topic_to_round error:", error);
+    }
+  } catch (e) {
+    console.warn("advance_topic_to_round threw:", e);
+  }
 
+  // 4) Fetch matchups (AFTER advancing so winners are filled in)
   const { data: matchups } = await supabase
     .from("matchups")
     .select(
@@ -74,6 +79,7 @@ export default async function Home() {
       id,
       round,
       matchup_index,
+      winner_entry_id,
       a_entry:entries!matchups_a_entry_id_fkey (
         id, name, seed, description, image_url
       ),
@@ -88,11 +94,11 @@ export default async function Home() {
 
   const matchupIds = (matchups ?? []).map((m: any) => m.id);
 
-  // ===== counts for results/fill =====
+  // 5) Counts for results bars
   const { data: voteRows } = await supabase
     .from("votes")
     .select("matchup_id, choice_entry_id")
-    .in("matchup_id", matchupIds.length ? matchupIds : ["000"]);
+    .in("matchup_id", matchupIds.length ? matchupIds : ["00000000-0000-0000-0000-000000000000"]);
 
   const counts: Record<string, number> = {};
   for (const v of voteRows ?? []) {
@@ -100,29 +106,15 @@ export default async function Home() {
     counts[key] = (counts[key] ?? 0) + 1;
   }
 
-  // ✅ FIX: cookies() is async in your Next, so await it
-  const cookieStore = await cookies();
-  const voterId = cookieStore.get(VOTER_COOKIE)?.value ?? null;
-
-  let votedMatchupIds: string[] = [];
-  if (voterId && matchupIds.length) {
-    const { data: votedRows } = await supabase
-      .from("votes")
-      .select("matchup_id")
-      .eq("voter_id", voterId)
-      .in("matchup_id", matchupIds);
-
-    votedMatchupIds = Array.from(
-      new Set((votedRows ?? []).map((r: any) => r.matchup_id))
-    );
-  }
+  // Voting flag: BracketBoard already restricts voting to currentRound
+  const votingOpen = true;
 
   return (
     <main className="bb-page">
       <div className="bb-banner">
         {/* LEFT */}
         <div className="bb-bannerLeft">
-          <div className="bb-roundBig">Round {currentRound}</div>
+          <div className="bb-roundBig">Round {scheduledRound}</div>
         </div>
 
         {/* CENTER */}
@@ -151,9 +143,9 @@ export default async function Home() {
       </div>
 
       <BracketBoard
-        currentRound={currentRound}
+        currentRound={scheduledRound}
         votingOpen={votingOpen}
-        votedMatchupIds={votedMatchupIds}
+        votedMatchupIds={[]}          {/* client still loads voter’s votes */}
         matchups={(matchups ?? []) as any}
         counts={counts}
       />

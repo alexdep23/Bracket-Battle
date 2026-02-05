@@ -13,12 +13,13 @@ function formatCountdown(ms: number) {
   return `${h}:${pad(m)}:${pad(s)}`;
 }
 
-function msUntilNextMidnightET(now = new Date()) {
+function getETParts(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: TZ,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    weekday: "short",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -27,16 +28,55 @@ function msUntilNextMidnightET(now = new Date()) {
 
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
 
-  const y = Number(get("year"));
-  const mo = Number(get("month"));
-  const d = Number(get("day"));
-  const hh = Number(get("hour"));
-  const mm = Number(get("minute"));
-  const ss = Number(get("second"));
+  return {
+    year: Number(get("year")),
+    month: Number(get("month")),
+    day: Number(get("day")),
+    hour: Number(get("hour")),
+    minute: Number(get("minute")),
+    second: Number(get("second")),
+    weekday: get("weekday"), // "Sun"..."Sat"
+  };
+}
 
-  const etNow = new Date(y, mo - 1, d, hh, mm, ss, 0);
+function etWeekdayToNum(wd: string) {
+  const map: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  return map[wd] ?? 0;
+}
+
+/**
+ * Next switch times (ET midnight):
+ * - Sun/Mon -> Tue
+ * - Tue/Wed -> Thu
+ * - Thu/Fri -> Sat
+ * - Sat     -> Sun
+ */
+function msUntilNextRoundSwitchET(now = new Date()) {
+  const p = getETParts(now);
+  const wd = etWeekdayToNum(p.weekday);
+
+  // Build an "ET-local" Date object using the extracted ET parts.
+  // (This avoids timezone math/hydration weirdness.)
+  const etNow = new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second, 0);
+
+  // How many days to jump to reach the next switch day at 00:00
+  let addDays = 1;
+
+  if (wd === 0 || wd === 1) addDays = (2 - wd);      // Sun(0)->2, Mon(1)->1
+  else if (wd === 2 || wd === 3) addDays = (4 - wd); // Tue(2)->2, Wed(3)->1
+  else if (wd === 4 || wd === 5) addDays = (6 - wd); // Thu(4)->2, Fri(5)->1
+  else addDays = 1;                                  // Sat(6)->Sun(0) (next day)
+
   const next = new Date(etNow);
-  next.setDate(etNow.getDate() + 1);
+  next.setDate(etNow.getDate() + addDays);
   next.setHours(0, 0, 0, 0);
 
   return next.getTime() - etNow.getTime();
@@ -45,7 +85,6 @@ function msUntilNextMidnightET(now = new Date()) {
 export default function NextRoundTimer() {
   const [now, setNow] = useState<Date | null>(null);
 
-  // ✅ Only start on client to avoid hydration mismatch
   useEffect(() => {
     setNow(new Date());
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -54,7 +93,7 @@ export default function NextRoundTimer() {
 
   const countdown = useMemo(() => {
     if (!now) return "--:--:--";
-    return formatCountdown(msUntilNextMidnightET(now));
+    return formatCountdown(msUntilNextRoundSwitchET(now));
   }, [now]);
 
   return (
