@@ -797,3 +797,31 @@ button{ font-family: inherit; cursor: pointer; }
   max-width: none;
   width: 100%;
 }
+/* Header icons: force identical glyph box + alignment */
+.bb-iconBtn {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.bb-iconGlyph {
+  display: block;
+  line-height: 1;
+  transform: translateY(-1px); /* tiny baseline fix */
+}
+/* Archive bubble should stretch full width */
+.bb-archiveGrid,
+.bb-archiveList {
+  width: 100%;
+}
+
+.bb-archiveGrid a,
+.bb-archiveList a,
+.bb-archiveBubbleLink {
+  display: block;
+  width: 100%;
+}
+
+.bb-archiveTile,
+.bb-archiveBubble {
+  width: 100%;
+}
