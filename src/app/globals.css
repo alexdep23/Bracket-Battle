@@ -1,0 +1,842 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== Brand palette + banner tuning knobs ===== */
+:root{
+  --bg0:#0b1020;
+  --bg1:#101a33;
+  --ink:#eaf0ff;
+  --muted:rgba(234,240,255,.72);
+  --card:rgba(255,255,255,.10);
+  --card2:rgba(255,255,255,.14);
+  --stroke:rgba(255,255,255,.22);
+  --accent:#7aa6ff;
+  --accent2:#8c7cff;
+
+  /* ===== YOU EDIT THESE 4 VALUES ONLY (DESKTOP) ===== */
+  --logoY: 30px;       /* negative goes UP, positive goes DOWN */
+  --topicY: -190px;    /* tournament title up/down */
+  --metaY: -190px;     /* starts + voting status up/down */
+  --logoH: 450px;      /* logo height (size) */
+}
+
+html, body{ height:100%; }
+
+body{
+  margin:0;
+  color:var(--ink);
+  background:
+    radial-gradient(1200px 700px at 20% 30%, rgba(122,166,255,.20), transparent 60%),
+    radial-gradient(900px 600px at 85% 25%, rgba(140,124,255,.18), transparent 55%),
+    radial-gradient(800px 600px at 35% 90%, rgba(122,166,255,.12), transparent 60%),
+    linear-gradient(180deg, var(--bg0), var(--bg1));
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+}
+
+/* ===== Page ===== */
+.bb-page{
+  min-height:100vh;
+  padding:18px 18px 26px;
+}
+
+/* =========================
+   BANNER (CLEAN + MOVABLE)
+   ========================= */
+
+.bb-banner{
+  position:relative;
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,.18);
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+  box-shadow: 0 18px 60px rgba(0,0,0,.35);
+  padding:18px;
+  min-height:120px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  overflow:hidden; /* prevents banner elements from covering the bracket below */
+}
+
+/* left */
+.bb-bannerLeft{
+  width:180px;
+  display:flex;
+  align-items:center;
+  z-index:2;
+}
+.bb-roundBig{
+  font-size:36px;
+  font-weight:900;
+  letter-spacing:.02em;
+  transform: translateY(-6px);
+  transform: translateX(50px); /* negative = up, positive = down */
+}
+
+/* center (stack) */
+.bb-bannerCenter{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  width:min(900px, 72%);
+  z-index:1;
+
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+
+  pointer-events:none;   /* center can’t block clicks */
+}
+.bb-bannerCenter *{
+  pointer-events:none;
+}
+
+/* 3 independently movable blocks */
+.bb-bannerLogo{ transform: translateY(var(--logoY)); }
+.bb-bannerTopic{ transform: translateY(var(--topicY)); }
+.bb-bannerMeta{ transform: translateY(var(--metaY)); }
+
+/* logo image (single source of truth) */
+.bb-logoImg{
+  height: var(--logoH);
+  width: auto;
+  display:block;
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
+}
+
+/* title + meta styling */
+.bb-tourTitle{
+  margin-top:8px;
+  font-size:14px;
+  letter-spacing:.45em;
+  opacity:.85;
+}
+.bb-meta{
+  margin-top:10px;
+  font-size:14px;
+  opacity:.9;
+  display:flex;
+  justify-content:center;
+  gap:10px;
+}
+.bb-dot{ opacity:.6; }
+.bb-open{ color:#8df0c8; font-weight:700; }
+.bb-closed{ color:#ff7b8a; font-weight:800; }
+
+/* right */
+.bb-bannerRight{
+  width:120px;
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  z-index:2;
+}
+
+/* icon button */
+.bb-iconBtn{
+  width:44px;
+  height:44px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.06);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:.9;
+  cursor:pointer;
+  color: rgba(234,240,255,.9);
+  text-decoration:none;
+}
+.bb-iconBtn:link,
+.bb-iconBtn:visited{
+  color: rgba(234,240,255,.9);
+  text-decoration:none;
+}
+
+/* ===== Board ===== */
+.bb-boardWrap{
+  margin-top:18px;
+  border-radius:22px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.10);
+  box-shadow: 0 18px 60px rgba(0,0,0,.28);
+  padding:18px;
+  overflow-x:auto;
+}
+
+.bb-board{ display:flex; gap:26px; min-width:1200px; }
+.bb-col{ width:360px; }
+.bb-colHeader{
+  font-weight:900;
+  letter-spacing:.35em;
+  font-size:14px;
+  opacity:.85;
+  margin:0 0 10px 10px;
+}
+.bb-colBody{ position:relative; }
+
+/* decorative bands */
+.bb-band{
+  position:absolute;
+  left:0;
+  right:0;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+  pointer-events:none;
+  z-index:0;
+}
+
+/* ===== Bubble ===== */
+.bb-bubble{
+  position:relative;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.10);
+  overflow:hidden;
+  margin:6px 0;
+  z-index:1;
+}
+
+/* fill is always behind and never catches clicks */
+.bb-bubbleFill{
+  position:absolute;
+  inset:0;
+  background: linear-gradient(90deg, rgba(255,255,255,0.32), rgba(255,255,255,0.18));
+  transition: width 520ms cubic-bezier(.2,.9,.2,1);
+  z-index:0;
+  pointer-events:none;
+}
+
+/* inner grid */
+.bb-bubbleInner{
+  position:relative;
+  z-index:1;
+  height:100%;
+  display:grid;
+  grid-template-columns:65px 1fr 92px;
+  align-items:center;
+  gap:6px;
+  padding:10px 10px;
+  pointer-events:none;
+}
+
+/* Buttons inside bubble must be clickable */
+.bb-bubbleInner button{
+  pointer-events:auto !important;
+}
+
+/* Seed column */
+.bb-seed{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+}
+.bb-seedLabel{
+  font-size:10px;
+  letter-spacing:.18em;
+  opacity:.75;
+  font-weight:800;
+}
+.bb-seedNum{
+  font-size:18px;
+  font-weight:900;
+  line-height:1.05;
+}
+.bb-seedNudge{ transform: translate(-11px, -9px); }
+
+/* Right column */
+.bb-right{
+  height:100%;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  position:relative;
+  z-index:2;
+  pointer-events:auto;
+}
+.bb-rightNudge{ transform: translate(0px, -9px); }
+
+/* Center column */
+.bb-titleWrap{
+  height:100%;
+  min-width:0;
+  display:grid;
+  grid-template-rows: 1fr 18px;
+  justify-items: stretch;
+  align-items:center;
+  text-align:left;
+  pointer-events:auto;
+}
+
+.bb-titleRow{
+  position:relative;
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  pointer-events:auto;
+}
+
+.bb-teamName{
+  width:100%;
+  min-width:0;
+  font-weight:900;
+  font-size:14px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  padding-right:20px;
+  text-align:left;
+}
+
+/* Meta row */
+.bb-metaRow{
+  height:16px;
+  width:100%;
+  display:flex;
+  align-items:center;
+  font-size:12px;
+  font-weight:700;
+  opacity:0.9;
+}
+.bb-metaRowEmpty{ opacity:0; }
+.bb-metaRowSplit{
+  transform: translateY(-7.5px);
+  justify-content:space-between;
+  padding:0 6px;
+  gap:40px;
+}
+
+.bb-countText{
+  opacity:.82;
+  transform: translateX(-7px) translateY(-3px);
+}
+.bb-pctInline{
+  font-weight:900;
+  opacity:.98;
+  transform: translateX(-7px) translateY(-3px);
+}
+
+.bb-voteDisabled{
+  padding:6px 12px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.08);
+  opacity:.55;
+  font-weight:800;
+}
+
+/* Info button */
+.bb-infoBtn{
+  position:absolute;
+  right:-30px;
+  top:50%;
+  transform: translateY(-50%);
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,0.5);
+  background: rgba(255,255,255,.06);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  color:#ffffff;
+  z-index:20;
+  pointer-events:auto !important;
+}
+.bb-infoBtn:hover{
+  border-color:#ffffff;
+  background: rgba(255,255,255,0.15);
+  color:#ffffff;
+}
+
+/* Hide info on placeholder/TBD bubbles */
+.bb-bubble.placeholder .bb-infoBtn{
+  display:none !important;
+}
+
+/* Keep bubble width consistent, hide vote content on TBD */
+.bb-bubble.placeholder .bb-right{
+  visibility: hidden;   /* keeps column width */
+  pointer-events: none;
+}
+
+/* Placeholder TBD text consistency */
+.bb-bubble.placeholder .bb-teamName{
+  font-size: 14px !important;
+  font-weight: 900 !important;
+  opacity: 0.95 !important;
+  font-style: normal !important;
+  letter-spacing: 0 !important;
+}
+
+/* =========================
+   MODAL (INFO / OVERLAY)
+   ========================= */
+
+.bb-modalOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646 !important;
+  background: rgba(0, 0, 0, 0.78) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  pointer-events:auto !important;
+}
+
+.bb-modalCard{
+  position: relative !important;
+  z-index: 2147483647 !important;
+
+  width: min(560px, 92vw) !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+
+  border-radius: 18px !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+
+  background: linear-gradient(180deg, rgba(14,18,34,.94), rgba(10,13,26,.92)) !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,.70) !important;
+
+  pointer-events:auto !important;
+}
+
+.bb-modalHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+.bb-modalTitle{ font-size:20px; font-weight:900; }
+
+.bb-modalClose{
+  width:34px;
+  height:34px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.06);
+  color:#ffffff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+.bb-modalClose:hover{
+  border-color: rgba(255,255,255,.5);
+  background: rgba(255,255,255,.12);
+}
+
+.bb-modalBody{ padding:14px 16px 10px; }
+.bb-modalPills{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+
+.bb-pill{
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  font-size:12px;
+  font-weight:800;
+  opacity:.95;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+}
+
+.bb-modalImage{
+  width:100%;
+  height:220px;
+  object-fit:cover;
+  border-radius:14px;
+  margin:10px 0 12px;
+  display:block;
+}
+
+.bb-modalSection{
+  margin-top:10px;
+  padding-top:10px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.bb-modalLabel{
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  font-size:12px;
+  letter-spacing:.18em;
+  font-weight:900;
+  opacity:.78;
+  margin-bottom:6px;
+}
+
+.bb-modalText{
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  font-size:14px;
+  line-height:1.35;
+  opacity:.92;
+}
+
+.bb-modalFooter{
+  padding:12px 16px 14px;
+  display:flex;
+  justify-content:flex-end;
+  border-top: 1px solid rgba(255,255,255,.10);
+}
+
+.bb-modalBtn{
+  padding:10px 14px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.08);
+  color:#ffffff;
+  font-weight:900;
+  cursor:pointer;
+}
+.bb-modalBtn:hover{
+  border-color: rgba(255,255,255,.28);
+  background: rgba(255,255,255,.10);
+}
+
+/* Decorative layers must never eat clicks */
+.bb-band,
+.bb-bubbleFill{
+  pointer-events: none !important;
+}
+
+button{ font-family: inherit; cursor: pointer; }
+
+/* FINAL ROUND button sizing tweaks (optional; keep if you want) */
+.bb-col:nth-child(4) button{
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  min-height: 28px !important;
+}
+
+/* Vote disabled pill */
+.bb-voteDisabled{
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+/* Make title button look like plain text (no white box) */
+.bb-teamNameBtn{
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent !important;
+  border: 0 !important;
+  outline: none;
+  padding: 0 !important;
+  margin: 0 !important;
+  text-align: left;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.bb-teamNameBtn:focus{ outline: none; }
+.bb-teamNameBtn:focus-visible{
+  outline: 2px solid rgba(255,255,255,.35);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Prevent large invisible column layers from stealing clicks */
+.bb-colBody{
+  pointer-events: none;
+}
+
+/* Re-enable clicks on actual bubbles */
+.bb-bubble,
+.bb-bubble *{
+  pointer-events: auto;
+}
+
+/* Next round timer inline styling */
+.bb-nextRound{
+  display:inline-flex;
+  align-items:baseline;
+  gap:6px;
+}
+.bb-nextRoundLabel{ opacity:.85; font-weight:800; }
+.bb-nextRoundValue{ font-weight:950; letter-spacing:.06em; }
+.bb-nextRoundTz{ opacity:.7; font-weight:800; font-size:12px; }
+
+/* Site Footer */
+.bb-site{ min-height:100vh; display:flex; flex-direction:column; }
+.bb-siteMain{ flex:1; }
+.bb-footerWrap{ padding:14px 18px 18px; }
+.bb-footerBubble{
+  width:98%;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.18);
+  background: rgba(0,0,0,.20);
+  backdrop-filter: blur(6px);
+  padding:12px 14px;
+  text-align:center;
+  font-size:11px;
+  opacity:0.65;
+}
+
+/* =========================================================
+   MOBILE OVERRIDES (ONE PLACE ONLY)
+   ========================================================= */
+@media (max-width: 768px){
+  /* Stop page-level sideways scroll */
+  html, body{ overflow-x: hidden; }
+
+  /* Board container: no horizontal scroll on mobile */
+  .bb-boardWrap{
+    overflow-x: hidden !important;
+    padding: 12px !important;
+  }
+
+  /* Remove the desktop forced wide board */
+  .bb-board{
+    min-width: 0 !important;
+    width: 100% !important;
+    gap: 0 !important;
+  }
+
+  /* One column fits screen */
+  .bb-col{ width: 100% !important; }
+
+  /* Round picker */
+  .bb-mobileRounds{
+    display: flex;
+    gap: 10px;
+    margin: 0 0 12px 0;
+    padding: 6px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.12);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+
+    position: sticky;
+    top: 10px;
+    z-index: 2; /* keep low; modal will always win */
+  }
+
+  .bb-mobileRoundBtn{
+    flex: 1;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.06);
+    color: rgba(234,240,255,.9);
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: .10em;
+  }
+
+  .bb-mobileRoundBtn.active{
+    border-color: rgba(255,255,255,.28);
+    background: rgba(255,255,255,.12);
+  }
+
+  /* Drop the ROUND label slightly */
+  .bb-colHeader{
+    margin-top: 10px !important;
+    margin-left: 6px !important;
+  }
+
+  /* ---------- Banner: symmetric mobile card ---------- */
+  .bb-banner{
+    display:flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    min-height: auto !important;
+    padding: 14px 14px 14px !important;
+    text-align: center;
+  }
+
+  /* Make children flow normally (no absolute center) */
+  .bb-bannerCenter{
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    gap: 6px !important;
+  }
+
+  /* Center Round text and buttons */
+  .bb-bannerLeft{
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .bb-roundBig{
+    font-size: 22px !important;
+    width: 100% !important;
+    text-align: center !important;
+    transform: translateX(-5px)
+  }
+
+  .bb-bannerRight{
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 10px !important;
+  }
+
+  /* Mobile logo tuning (ONLY on mobile; desktop knobs remain) */
+  :root{
+    --logoH: 280px;   /* bigger logo on mobile */
+    --logoY: 0px;
+    --topicY: -60px;
+    --metaY: -52px;
+  }
+
+  .bb-tourTitle{
+    font-size: 11px !important;
+    letter-spacing: .32em !important;
+  }
+
+  .bb-meta{
+    font-size: 11px !important;
+    gap: 8px !important;
+    flex-wrap: wrap;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* ---------- Footer: symmetric ---------- */
+  .bb-footerWrap{
+    padding: 12px 16px 16px !important;
+  }
+
+  .bb-footerBubble{
+    width: 100% !important;
+    margin: 0 auto !important;
+    border-radius: 16px !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Modal sizing polish on mobile (prevents “skinny column” look) */
+  .bb-modalOverlay{
+    padding: 14px !important;
+  }
+
+  .bb-modalCard{
+    width: 94vw !important;
+    max-width: 560px !important;
+    margin: 0 auto !important;
+    box-sizing: border-box !important;
+    text-align: left !important;
+  }
+
+  .bb-modalTitle,
+  .bb-modalText{
+    text-align: left !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .bb-modalHeader,
+  .bb-modalBody,
+  .bb-modalFooter{
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* KEY FIX: when modal is open, hide the sticky round picker entirely */
+  body.bb-modalOpen .bb-mobileRounds{
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+/* === Modal should NOT show anything behind it (mobile + desktop) === */
+.bb-modalOverlay{
+  background: rgba(0,0,0,.86) !important; /* darker than .78 */
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+}
+
+/* Make the card fully opaque (no bleed-through) */
+.bb-modalCard{
+  background: linear-gradient(
+    180deg,
+    rgba(14,18,34,1),
+    rgba(10,13,26,1)
+  ) !important;
+}
+@media (max-width: 768px){
+  .bb-mobileRounds{
+    z-index: 1 !important;
+  }
+  .bb-modalOverlay{
+    z-index: 2147483646 !important;
+  }
+  .bb-modalCard{
+    z-index: 2147483647 !important;
+  }
+}
+/* === Make modal hide EVERYTHING behind it (bubbles included) === */
+.bb-modalOverlay{
+  /* crank this up so nothing shows through */
+  background: rgba(0,0,0,.94) !important;   /* was ~.78/.86 */
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+}
+
+/* Keep the card fully opaque too */
+.bb-modalCard{
+  background: rgba(10,13,26,1) !important;  /* solid base */
+  isolation: isolate !important;            /* prevents weird blending */
+}
+/* =========================================================
+   MODAL MUST SIT ABOVE *ALL* BUBBLES (mobile + desktop)
+   ========================================================= */
+
+/* Modal always wins */
+.bb-modalOverlay{
+  z-index: 2147483646 !important;
+}
+.bb-modalCard{
+  z-index: 2147483647 !important;
+}
+
+/* Explicitly LOWER everything interactive underneath */
+.bb-boardWrap,
+.bb-board,
+.bb-col,
+.bb-colBody,
+.bb-bubble,
+.bb-bubbleInner,
+.bb-bubbleFill{
+  z-index: 0 !important;
+}
+
+/* Mobile-specific safety: bubbles can NEVER float above modal */
+@media (max-width: 768px){
+  .bb-bubble{
+    position: relative !important;
+    z-index: 0 !important;
+  }
+
+  /* Round selector already handled, keep it low */
+  .bb-mobileRounds{
+    z-index: 1 !important;
+  }
+}
