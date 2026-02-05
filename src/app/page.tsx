@@ -34,11 +34,26 @@ function activeRoundFromDay(now: Date) {
   return 4; // Sat
 }
 
+type Entry = {
+  id: string;
+  name: string;
+  seed: number;
+  description?: string | null;
+  image_url?: string | null;
+};
+
+type MatchupRow = {
+  id: string;
+  round: number;
+  matchup_index: number;
+  a_entry: Entry | null;
+  b_entry: Entry | null;
+};
+
 export default async function Home() {
   const now = new Date();
 
-  // ✅ AUTO topic selection:
-  // pick the most recent topic whose starts_at is in the past (or now)
+  // ✅ pick most recent topic that has started
   const { data: topic } = await supabase
     .from("topics")
     .select("*")
@@ -52,8 +67,6 @@ export default async function Home() {
   }
 
   const scheduledRound = activeRoundFromDay(now);
-
-  // Voting is allowed ONLY for the current round (BracketBoard enforces this per-round)
   const votingOpen = true;
 
   const { data: matchups } = await supabase
@@ -71,19 +84,91 @@ export default async function Home() {
     .order("round", { ascending: true })
     .order("matchup_index", { ascending: true });
 
-  const matchupIds = (matchups ?? []).map((m: any) => m.id);
+  const baseMatchups = (matchups ?? []) as MatchupRow[];
+  const matchupIds = baseMatchups.map((m) => m.id);
 
   // ===== counts for bars/results =====
   const { data: voteRows } = await supabase
     .from("votes")
     .select("matchup_id, choice_entry_id")
-    .in("matchup_id", matchupIds.length ? matchupIds : ["00000000-0000-0000-0000-000000000000"]);
+    .in(
+      "matchup_id",
+      matchupIds.length ? matchupIds : ["00000000-0000-0000-0000-000000000000"]
+    );
 
   const counts: Record<string, number> = {};
   for (const v of voteRows ?? []) {
     const key = `${v.matchup_id}:${v.choice_entry_id}`;
     counts[key] = (counts[key] ?? 0) + 1;
   }
+
+  // ---------- DERIVE ADVANCEMENT (display-only) ----------
+  // winner for a matchup = entry with more votes (tie or 0 votes => null)
+  function winnerOf(m: MatchupRow): Entry | null {
+    if (!m.a_entry || !m.b_entry) return null;
+
+    const aVotes = counts[`${m.id}:${m.a_entry.id}`] ?? 0;
+    const bVotes = counts[`${m.id}:${m.b_entry.id}`] ?? 0;
+
+    if (aVotes === 0 && bVotes === 0) return null;
+    if (aVotes === bVotes) return null;
+
+    return aVotes > bVotes ? m.a_entry : m.b_entry;
+  }
+
+  // group matchups by round
+  const byRound = new Map<number, MatchupRow[]>();
+  for (const m of baseMatchups) {
+    const arr = byRound.get(m.round) ?? [];
+    arr.push(m);
+    byRound.set(m.round, arr);
+  }
+  for (const [r, arr] of byRound.entries()) {
+    arr.sort((a, b) => a.matchup_index - b.matchup_index);
+    byRound.set(r, arr);
+  }
+
+  // winnersByRound[r][matchup_index] = winning Entry
+  const winnersByRound: Record<number, Record<number, Entry | null>> = {};
+
+  // Only compute winners for rounds that are "finished" (strictly before current scheduled round)
+  for (let r = 1; r < scheduledRound; r++) {
+    winnersByRound[r] = {};
+    const roundMatchups = byRound.get(r) ?? [];
+    for (const m of roundMatchups) {
+      winnersByRound[r][m.matchup_index] = winnerOf(m);
+    }
+  }
+
+  // create derived matchups where later rounds get a_entry/b_entry from previous round winners
+  const derivedMatchups: MatchupRow[] = baseMatchups.map((m) => ({ ...m }));
+
+  function findDerived(round: number, idx: number) {
+    return derivedMatchups.find(
+      (m) => m.round === round && m.matchup_index === idx
+    );
+  }
+
+  // Feed winners forward: (prev 1,2)->next 1 ; (prev 3,4)->next 2 ; etc.
+  for (let r = 2; r <= 4; r++) {
+    const prevWinners = winnersByRound[r - 1];
+    if (!prevWinners) continue;
+
+    const roundMatchups = byRound.get(r) ?? [];
+    for (const m of roundMatchups) {
+      const prevA = prevWinners[m.matchup_index * 2 - 1] ?? null;
+      const prevB = prevWinners[m.matchup_index * 2] ?? null;
+
+      const target = findDerived(r, m.matchup_index);
+      if (!target) continue;
+
+      // Only override if we actually have something to feed forward
+      // (this avoids wiping any DB-filled values you might have later)
+      if (prevA) target.a_entry = prevA;
+      if (prevB) target.b_entry = prevB;
+    }
+  }
+  // ------------------------------------------------------
 
   return (
     <main className="bb-page">
@@ -122,7 +207,7 @@ export default async function Home() {
         currentRound={scheduledRound}
         votingOpen={votingOpen}
         votedMatchupIds={[]} // client determines this via voter_id
-        matchups={(matchups ?? []) as any}
+        matchups={derivedMatchups as any}
         counts={counts}
       />
     </main>
