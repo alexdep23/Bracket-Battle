@@ -1,3 +1,4 @@
+// src/app/archive/page.tsx
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
@@ -5,24 +6,28 @@ type TopicRow = {
   id: string;
   title: string;
   starts_at: string;
-  status?: string | null;
-  current_round?: number | null;
+  status: string | null;
 };
-
-function formatDate(d: string) {
-  const dt = new Date(d);
-  return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
 
 export default async function ArchivePage() {
   const nowIso = new Date().toISOString();
 
-  // ✅ IMPORTANT: do NOT show future topics to the public
+  // Only show topics that have started (no future topics)
   const { data: topics, error } = await supabase
     .from("topics")
-    .select("id,title,starts_at,status,current_round")
+    .select("id,title,starts_at,status")
     .lte("starts_at", nowIso)
     .order("starts_at", { ascending: false });
+
+  if (error) {
+    return (
+      <main className="bb-page p-6 text-white">
+        <pre className="rounded bg-black/20 p-4 text-sm overflow-auto">
+          {JSON.stringify({ error: error.message }, null, 2)}
+        </pre>
+      </main>
+    );
+  }
 
   return (
     <main className="bb-page">
@@ -36,12 +41,15 @@ export default async function ArchivePage() {
             <img src="/logo.png" alt="Bracket Battle" className="bb-logoImg" />
           </div>
 
-          {/* ✅ ALL CAPS like tournament title */}
-          <div className="bb-tourTitle">PAST TOURNAMENTS</div>
+          <div className="bb-bannerTopic">
+            <div className="bb-tourTitle">PAST TOURNAMENTS</div>
+          </div>
+
+          {/* remove “read-only” line entirely */}
         </div>
 
         <div className="bb-bannerRight">
-          <Link href="/" className="bb-iconBtn" aria-label="Back to home">
+          <Link href="/" className="bb-iconBtn" aria-label="Back home">
             ←
           </Link>
           <div className="bb-iconBtn" aria-hidden>
@@ -50,44 +58,30 @@ export default async function ArchivePage() {
         </div>
       </div>
 
-      <div className="bb-archiveWrap">
-        {error ? (
-          <pre className="bb-debug">
-            {JSON.stringify({ error: error.message }, null, 2)}
-          </pre>
-        ) : null}
+      <div className="bb-archiveGrid">
+        {(topics ?? []).map((t) => (
+          <Link key={t.id} href={`/archive/${t.id}`} className="bb-archiveTile">
+            <div className="bb-archiveTileInner">
+              <div className="bb-archiveTitle">
+                {t.title?.toUpperCase?.() ?? t.title}
+              </div>
 
-        {(topics ?? []).length === 0 ? (
-          <div className="bb-empty">No past tournaments yet.</div>
-        ) : (
-          <div className="bb-archiveList">
-            {(topics as TopicRow[]).map((t) => {
-              const title = (t.title ?? "").toUpperCase();
-              const started = formatDate(t.starts_at);
-              const isActive = t.status === "active";
+              <div className="bb-archiveMeta">
+                Started{" "}
+                {new Date(t.starts_at).toLocaleDateString(undefined, {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </div>
+            </div>
 
-              return (
-                <Link key={t.id} href={`/archive/${t.id}`} className="bb-archiveBubbleLink">
-                  <div className="bb-archiveBubble">
-                    <div className="bb-archiveBubbleLeft">
-                      <div className="bb-archiveBubbleKicker">TOURNAMENT</div>
-                      <div className="bb-archiveBubbleTitle">{title}</div>
-                      <div className="bb-archiveBubbleMeta">Started {started}</div>
-                    </div>
+            <div className="bb-archiveCta">VIEW →</div>
+          </Link>
+        ))}
 
-                    <div className="bb-archiveBubbleRight">
-                      {isActive ? (
-                        <span className="bb-archivePill">ACTIVE</span>
-                      ) : (
-                        <span className="bb-archivePill bb-archivePillMuted">VIEW</span>
-                      )}
-                      <span className="bb-archiveArrow">→</span>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+        {(!topics || topics.length === 0) && (
+          <div className="p-6 text-white/80">No past tournaments yet.</div>
         )}
       </div>
     </main>
