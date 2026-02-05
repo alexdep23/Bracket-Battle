@@ -3,7 +3,7 @@
 export type VotingWindow = { open: Date; close: Date };
 
 // Voting windows: Mon / Wed / Fri
-// 2:00 PM → 11:59 PM **Eastern Time**
+// 12:00 AM → 11:59 PM **Eastern Time**
 const OPEN_HOUR = 14;
 const OPEN_MIN = 0;
 const CLOSE_HOUR = 23;

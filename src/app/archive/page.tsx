@@ -1,4 +1,4 @@
-// src/app/archive/[slug]/page.tsx
+// src/app/archive/[id]/page.tsx
 import { createClient } from "@supabase/supabase-js";
 import BracketBoard from "@/components/BracketBoard";
 
@@ -43,7 +43,7 @@ export default async function ArchiveTopicPage({
   // ✅ Fetch votes for this topic
   const { data: votes, error: votesError } = await supabase
     .from("votes")
-    .select("matchup_id,entry_id")
+    .select("matchup_id, choice_entry_id")
     .eq("topic_id", topic.id);
 
   if (votesError) return <div className="p-6">Error: {votesError.message}</div>;

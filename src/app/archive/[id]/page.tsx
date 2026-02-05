@@ -11,10 +11,10 @@ function supabaseAnon() {
 export default async function ArchiveTopicPage({
   params,
 }: {
-  params: { slug: string };
+  params: { id: string };
 }) {
   // ✅ Guard against bad routes like /archive/undefined
-  if (!params?.slug || params.slug === "undefined") {
+  if (!params?.id || params.id === "undefined") {
     return <div className="p-6">Not found.</div>;
   }
 
@@ -23,7 +23,7 @@ export default async function ArchiveTopicPage({
   const { data: topic, error: topicError } = await supabase
     .from("topics")
     .select("*")
-    .eq("id", params.slug)
+    .eq("id", params.id)
     .maybeSingle();
 
   if (topicError) {

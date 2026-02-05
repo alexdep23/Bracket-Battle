@@ -1,4 +1,3 @@
-// src/app/page.tsx
 import BracketBoard from "@/components/BracketBoard";
 import HomeHeaderActions from "@/components/HomeHeaderActions";
 import NextRoundTimer from "@/components/NextRoundTimer";
@@ -6,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 
 const TZ = "America/New_York";
 
-/** ET weekday: Sun=0 ... Sat=6 */
+/** Get current weekday in ET (0=Sun .. 6=Sat) */
 function getETDay(now: Date) {
   const wd = new Intl.DateTimeFormat("en-US", {
     timeZone: TZ,
@@ -26,26 +25,24 @@ function getETDay(now: Date) {
   return map[wd] ?? now.getDay();
 }
 
-/** Round schedule in ET:
- *  Round 1: Sun–Mon
- *  Round 2: Tue–Wed
- *  Round 3: Thu–Fri
- *  Final:   Sat
- */
+/** Round schedule in ET */
 function activeRoundFromDay(now: Date) {
   const day = getETDay(now);
-  if (day === 0 || day === 1) return 1;
-  if (day === 2 || day === 3) return 2;
-  if (day === 4 || day === 5) return 3;
-  return 4;
+  if (day === 0 || day === 1) return 1; // Sun/Mon
+  if (day === 2 || day === 3) return 2; // Tue/Wed
+  if (day === 4 || day === 5) return 3; // Thu/Fri
+  return 4; // Sat
 }
 
 export default async function Home() {
-  // 1) Get active topic (your current approach)
+  const now = new Date();
+
+  // ✅ AUTO topic selection:
+  // pick the most recent topic whose starts_at is in the past (or now)
   const { data: topic } = await supabase
     .from("topics")
     .select("*")
-    .eq("status", "active")
+    .lte("starts_at", now.toISOString())
     .order("starts_at", { ascending: false })
     .limit(1)
     .single();
@@ -54,24 +51,11 @@ export default async function Home() {
     return <main className="bb-page">No active topic</main>;
   }
 
-  // 2) Determine current round from ET (no manual flips)
-  const scheduledRound = activeRoundFromDay(new Date());
+  const scheduledRound = activeRoundFromDay(now);
 
-  // 3) Auto-advance DB to match scheduled round (safe if function exists)
-  //    If the function is missing or errors, page still renders.
-  try {
-    const { error } = await supabase.rpc("advance_topic_to_round", {
-      topic_id: topic.id,
-      target_round: scheduledRound,
-    });
-    if (error) {
-      console.warn("advance_topic_to_round error:", error);
-    }
-  } catch (e) {
-    console.warn("advance_topic_to_round threw:", e);
-  }
+  // Voting is allowed ONLY for the current round (BracketBoard enforces this per-round)
+  const votingOpen = true;
 
-  // 4) Fetch matchups (AFTER advancing so winners are filled in)
   const { data: matchups } = await supabase
     .from("matchups")
     .select(
@@ -79,13 +63,8 @@ export default async function Home() {
       id,
       round,
       matchup_index,
-      winner_entry_id,
-      a_entry:entries!matchups_a_entry_id_fkey (
-        id, name, seed, description, image_url
-      ),
-      b_entry:entries!matchups_b_entry_id_fkey (
-        id, name, seed, description, image_url
-      )
+      a_entry:entries!matchups_a_entry_id_fkey ( id, name, seed, description, image_url ),
+      b_entry:entries!matchups_b_entry_id_fkey ( id, name, seed, description, image_url )
     `
     )
     .eq("topic_id", topic.id)
@@ -94,7 +73,7 @@ export default async function Home() {
 
   const matchupIds = (matchups ?? []).map((m: any) => m.id);
 
-  // 5) Counts for results bars
+  // ===== counts for bars/results =====
   const { data: voteRows } = await supabase
     .from("votes")
     .select("matchup_id, choice_entry_id")
@@ -105,9 +84,6 @@ export default async function Home() {
     const key = `${v.matchup_id}:${v.choice_entry_id}`;
     counts[key] = (counts[key] ?? 0) + 1;
   }
-
-  // Voting flag: BracketBoard already restricts voting to currentRound
-  const votingOpen = true;
 
   return (
     <main className="bb-page">
@@ -145,7 +121,7 @@ export default async function Home() {
       <BracketBoard
         currentRound={scheduledRound}
         votingOpen={votingOpen}
-        votedMatchupIds={[]}          {/* client still loads voter’s votes */}
+        votedMatchupIds={[]} // client determines this via voter_id
         matchups={(matchups ?? []) as any}
         counts={counts}
       />
