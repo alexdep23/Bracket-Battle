@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/advance?secret=asdhi4rjfsSDIF38sdfLHUDFH3982ds",
-      "schedule": "*/10 * * * *"
-    }
-  ]
-}
