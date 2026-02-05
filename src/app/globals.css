@@ -586,6 +586,9 @@ button{ font-family: inherit; cursor: pointer; }
 }
 
 .bb-archiveTile{
+  width: 100%;
+  max-width: 1100px; /* optional cap so it doesn’t feel wider than the banner on huge screens */
+
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -779,49 +782,4 @@ button{ font-family: inherit; cursor: pointer; }
     visibility: hidden !important;
     pointer-events: none !important;
   }
-}
-/* ARCHIVE: make the single bubble span the content width */
-.bb-page a {
-  display: block;
-}
-
-/* if your archive bubble uses this class name (common in your CSS) */
-.bb-archiveBubble,
-.bb-archiveTile {
-  width: 95%;
-}
-
-/* ensure any archive wrapper doesn't cap width */
-.bb-archiveWrap,
-.bb-archiveGrid {
-  max-width: none;
-  width: 100%;
-}
-/* Header icons: force identical glyph box + alignment */
-.bb-iconBtn {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.bb-iconGlyph {
-  display: block;
-  line-height: 1;
-  transform: translateY(-1px); /* tiny baseline fix */
-}
-/* Archive bubble should stretch full width */
-.bb-archiveGrid,
-.bb-archiveList {
-  width: 100%;
-}
-
-.bb-archiveGrid a,
-.bb-archiveList a,
-.bb-archiveBubbleLink {
-  display: block;
-  width: 100%;
-}
-
-.bb-archiveTile,
-.bb-archiveBubble {
-  width: 100%;
 }
