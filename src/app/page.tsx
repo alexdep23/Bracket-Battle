@@ -81,10 +81,12 @@ export default async function Home() {
   }
 
   const scheduledRound = activeRoundFromDay(now);
-  const dbRound = topic.current_round ?? 1;
-  const roundToRender = Math.min(scheduledRound, dbRound);
 
-  // You can swap this to your actual voting-day logic later
+  // NOTE:
+  // topic.current_round is DB truth (for future auto-advance).
+  // For NOW, the site is schedule-driven, so the live round = scheduledRound.
+  const currentRound = scheduledRound;
+
   const votingOpen = true;
 
   const { data: matchupsData, error: matchupsError } = await supabase
@@ -106,7 +108,6 @@ export default async function Home() {
     return <main className="bb-page">Error loading matchups</main>;
   }
 
-  // Force stable typing for TS (avoids “unknown/never” headaches)
   const baseMatchups: MatchupRow[] = (matchupsData ?? []).map((m: any) => ({
     id: String(m.id),
     round: Number(m.round),
@@ -117,7 +118,6 @@ export default async function Home() {
 
   const matchupIds = baseMatchups.map((m) => m.id);
 
-  // ===== counts for bars/results =====
   const { data: voteRowsData, error: votesError } = await supabase
     .from("votes")
     .select("matchup_id, choice_entry_id")
@@ -139,7 +139,6 @@ export default async function Home() {
   }
 
   // ---------- DERIVE ADVANCEMENT (display-only) ----------
-  // winner for a matchup = entry with more votes (tie or 0 votes => null)
   function winnerOf(m: MatchupRow): Entry | null {
     if (!m.a_entry || !m.b_entry) return null;
 
@@ -152,7 +151,6 @@ export default async function Home() {
     return aVotes > bVotes ? m.a_entry : m.b_entry;
   }
 
-  // group matchups by round
   const byRound = new Map<number, MatchupRow[]>();
   for (const m of baseMatchups) {
     const arr = byRound.get(m.round) ?? [];
@@ -164,11 +162,10 @@ export default async function Home() {
     byRound.set(r, arr);
   }
 
-  // winnersByRound[r][matchup_index] = winning Entry
   const winnersByRound: Record<number, Record<number, Entry | null>> = {};
 
-  // Only compute winners for rounds that are "finished" (strictly before current scheduled round)
-  for (let r = 1; r < scheduledRound; r++) {
+  // compute winners for rounds strictly before the current scheduled round
+  for (let r = 1; r < currentRound; r++) {
     winnersByRound[r] = {};
     const roundMatchups = byRound.get(r) ?? [];
     for (const m of roundMatchups) {
@@ -176,7 +173,6 @@ export default async function Home() {
     }
   }
 
-  // create derived matchups where later rounds get a_entry/b_entry from previous round winners
   const derivedMatchups: MatchupRow[] = baseMatchups.map((m) => ({ ...m }));
 
   function findDerived(round: number, idx: number) {
@@ -185,7 +181,6 @@ export default async function Home() {
     );
   }
 
-  // Feed winners forward: (prev 1,2)->next 1 ; (prev 3,4)->next 2 ; etc.
   for (let r = 2; r <= 4; r++) {
     const prevWinners = winnersByRound[r - 1];
     if (!prevWinners) continue;
@@ -198,7 +193,6 @@ export default async function Home() {
       const target = findDerived(r, m.matchup_index);
       if (!target) continue;
 
-      // Only override if we actually have something to feed forward
       if (prevA) target.a_entry = prevA;
       if (prevB) target.b_entry = prevB;
     }
@@ -210,7 +204,7 @@ export default async function Home() {
       <div className="bb-banner">
         {/* LEFT */}
         <div className="bb-bannerLeft">
-          <div className="bb-roundBig">Round {roundToRender}</div>
+          <div className="bb-roundBig">Round {currentRound}</div>
         </div>
 
         {/* CENTER */}
@@ -239,9 +233,9 @@ export default async function Home() {
       </div>
 
       <BracketBoard
-        currentRound={roundToRender}
+        currentRound={currentRound}
         votingOpen={votingOpen}
-        votedMatchupIds={[]} // client determines this via voter_id
+        votedMatchupIds={[]}
         matchups={derivedMatchups as any}
         counts={counts}
       />
