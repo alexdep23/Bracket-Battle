@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/advance?secret=@ADVANCE_SECRET",
-      "schedule": "*/5 * * * *"
+      "path": "/api/advance?secret=asdhi4rjfsSDIF38sdfLHUDFH3982ds",
+      "schedule": "*/10 * * * *"
     }
   ]
 }
