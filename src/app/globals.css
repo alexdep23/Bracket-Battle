@@ -699,6 +699,125 @@ button{ font-family: inherit; cursor: pointer; }
     gap: 10px !important;
   }
 
+  /* ===== Archive bubble tiles ===== */
+.bb-archiveWrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px 18px 40px;
+}
+
+.bb-archiveList {
+  display: grid;
+  gap: 14px;
+}
+
+.bb-archiveBubbleLink {
+  display: block;
+  text-decoration: none;
+}
+
+.bb-archiveBubble {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  border-radius: 999px;
+  padding: 16px 18px;
+
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(10px);
+
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.bb-archiveBubble:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.bb-archiveBubbleLeft {
+  min-width: 0;
+}
+
+.bb-archiveBubbleKicker {
+  letter-spacing: 0.18em;
+  font-size: 12px;
+  opacity: 0.75;
+  font-weight: 800;
+}
+
+.bb-archiveBubbleTitle {
+  margin-top: 2px;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.96);
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70vw;
+}
+
+.bb-archiveBubbleMeta {
+  margin-top: 2px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.bb-archiveBubbleRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.bb-archivePill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  font-size: 12px;
+
+  color: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.bb-archivePillMuted {
+  opacity: 0.85;
+}
+
+.bb-archiveArrow {
+  font-size: 18px;
+  opacity: 0.85;
+}
+
+.bb-debug {
+  margin: 18px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.12);
+  overflow: auto;
+  color: white;
+}
+
+.bb-empty {
+  margin-top: 18px;
+  opacity: 0.85;
+}
+
+
   /* Mobile logo tuning (ONLY on mobile; desktop knobs remain) */
   :root{
     --logoH: 280px;   /* bigger logo on mobile */

@@ -15,24 +15,33 @@ function format(ms: number) {
 export default function NextRoundTimer() {
   const router = useRouter();
 
-  // compute the next deadline once (we will refresh when it passes)
   const target = useMemo(() => getNextRoundChangeET(), []);
-
-  const [msLeft, setMsLeft] = useState(() => target.toMillis() - Date.now());
+  const [mounted, setMounted] = useState(false);
+  const [msLeft, setMsLeft] = useState<number>(0);
 
   useEffect(() => {
-    const t = setInterval(() => {
+    setMounted(true);
+
+    const tick = () => {
       const left = target.toMillis() - Date.now();
       setMsLeft(left);
 
-      // when it hits 0, refresh the page so it can load the new round/topic
-      if (left <= 0) {
-        router.refresh();
-      }
-    }, 250);
+      if (left <= 0) router.refresh();
+    };
 
+    tick();
+    const t = setInterval(tick, 250);
     return () => clearInterval(t);
   }, [router, target]);
+
+  // ✅ Prevent hydration mismatch: render a stable placeholder on the server
+  if (!mounted) {
+    return (
+      <div className="text-sm opacity-80">
+        Next update in: <span className="font-semibold">--</span>
+      </div>
+    );
+  }
 
   return (
     <div className="text-sm opacity-80">
