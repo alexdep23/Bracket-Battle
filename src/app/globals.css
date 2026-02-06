@@ -790,3 +790,17 @@ button{ font-family: inherit; cursor: pointer; }
     pointer-events: none !important;
   }
 }
+/* ===== HARD MODAL TOP LAYER (RESTORE BASELINE BEHAVIOR) ===== */
+.bb-modalOverlay{
+  z-index: 2147483646 !important;
+  background: rgba(0,0,0,.94) !important;
+}
+
+.bb-modalCard{
+  z-index: 2147483647 !important;
+  background: #0b1020 !important; /* solid */
+}
+/* Make ⓘ match 📁 visually (same box, bigger glyph) */
+.bb-bannerRight button.bb-iconBtn{
+  font-size: 24px !important;
+}
