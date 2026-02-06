@@ -126,16 +126,19 @@ export default function HomeHeaderActions() {
         📁
       </Link>
 
-      {/* Info */}
-      <button
-        type="button"
+      <span
+        role="button"
+        tabIndex={0}
         className="bb-iconBtn"
         aria-label="Info"
         onClick={() => setOpen(true)}
-        style={{ color: "inherit" }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") setOpen(true);
+        }}
       >
         ⓘ
-      </button>
+      </span>
+
 
       {/* Portal the modal to <body> so z-index always wins */}
       {mounted && open ? createPortal(modal, document.body) : null}
