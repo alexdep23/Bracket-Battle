@@ -175,10 +175,6 @@ button{ font-family: inherit; cursor: pointer; }
   transform: translateY(-1px); /* tiny optical centering */
 }
 
-/* Make the ⓘ button match the 📁 optical size */
-button.bb-iconBtn{
-  font-size: 20px;
-}
 
 
 /* =========================================================
@@ -787,10 +783,40 @@ button.bb-iconBtn{
     pointer-events: none !important;
   }
 }
-/* Force modal to be fully opaque (prevents bracket showing through) */
-.bb-modalCard,
+/* ===== FINAL OVERRIDES (HARD) ===== */
+
+/* 1) Force Info button to visually match Archive */
+button.bb-iconBtn{
+  font-size: 20px !important;
+  line-height: 1 !important;
+}
+
+/* 2) Stop ANY modal transparency/bleed */
+.bb-modalOverlay{
+  background: rgba(0,0,0,.94) !important;
+}
+.bb-modalCard{
+  background-color: #0a0d1a !important;
+  opacity: 1 !important;
+  isolation: isolate !important;
+}
 .bb-modalHeader,
 .bb-modalBody,
 .bb-modalFooter{
-  background: rgba(10,13,26,1) !important;
+  background-color: #0a0d1a !important;
+}
+
+/* 3) Crop any modal poster image */
+.bb-modalOverlay img{
+  width: 100% !important;
+  max-height: 340px !important;
+  height: 340px !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+@media (max-width: 768px){
+  .bb-modalOverlay img{
+    height: 240px !important;
+    max-height: 240px !important;
+  }
 }
