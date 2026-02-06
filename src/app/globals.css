@@ -820,3 +820,49 @@ button.bb-iconBtn{
     max-height: 240px !important;
   }
 }
+/* =========================================================
+   FINAL OVERRIDES — HOME INFO BUTTON + MODAL BLEED FIX
+   ========================================================= */
+
+/* Make the header icon buttons match exactly (Link vs button glyph differences) */
+.bb-bannerRight .bb-iconBtn{
+  width: 44px !important;
+  height: 44px !important;
+  display: inline-flex !important;   /* Link can get overridden; force identical layout */
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+}
+
+/* Boost the ⓘ optical size so it matches the 📁 emoji */
+.bb-bannerRight button.bb-iconBtn{
+  font-size: 22px !important;
+}
+
+/* HARD: stop any “see-through” effect inside the HOME info modal card */
+.bb-modalOverlay{
+  z-index: 2147483646 !important;
+}
+.bb-modalCard{
+  z-index: 2147483647 !important;
+  background: #0a0d1a !important;  /* solid */
+  opacity: 1 !important;
+  isolation: isolate !important;
+}
+
+/* Ensure inner areas are also solid (prevents any weird transparency/overlay artifacts) */
+.bb-modalHeader,
+.bb-modalBody,
+.bb-modalFooter{
+  background: #0a0d1a !important;
+}
+
+/* Extra safety: paint a solid layer behind modal contents */
+.bb-modalCard::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:#0a0d1a;
+  z-index:-1;
+}
