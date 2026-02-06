@@ -10,10 +10,15 @@ type Topic = {
 };
 
 export default async function ArchivePage() {
+  const nowIso = new Date().toISOString();
+
   const { data, error } = await supabase
     .from("topics")
     .select("id,title,starts_at")
+    .not("starts_at", "is", null)
+    .lte("starts_at", nowIso)
     .order("starts_at", { ascending: false });
+
 
   if (error) {
     return <main className="bb-page">Error loading archive.</main>;
