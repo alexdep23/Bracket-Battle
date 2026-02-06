@@ -38,14 +38,14 @@ export default function NextRoundTimer() {
   if (!mounted) {
     return (
       <div className="text-sm opacity-80">
-        Next update in: <span className="font-semibold">--</span>
+        Next round in: <span className="font-semibold">--</span>
       </div>
     );
   }
 
   return (
     <div className="text-sm opacity-80">
-      Next update in: <span className="font-semibold">{format(msLeft)}</span>
+      Next round in: <span className="font-semibold">{format(msLeft)}</span>
     </div>
   );
 }
