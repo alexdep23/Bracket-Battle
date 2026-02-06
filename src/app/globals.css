@@ -76,7 +76,7 @@ button{ font-family: inherit; cursor: pointer; }
   font-size:36px;
   font-weight:900;
   letter-spacing:.02em;
-  transform: translate(50px, -6px); /* was two transforms; this combines them */
+  transform: translate(50px, -6px);
 }
 
 /* center */
@@ -145,37 +145,28 @@ button{ font-family: inherit; cursor: pointer; }
   border-radius:12px;
   border:1px solid rgba(255,255,255,.16);
   background: rgba(255,255,255,.06);
-  display:flex;
+  display:inline-flex; /* Ensures Links and Buttons behave the same */
   align-items:center;
   justify-content:center;
   opacity:.9;
   cursor:pointer;
   color: rgba(234,240,255,.9);
   text-decoration:none;
+  padding: 0;
+  font-size: 20px; /* Force consistent size for emoji/icon */
+  line-height: 1;
 }
+
+.bb-iconBtn:hover{
+  background: rgba(255,255,255,.12);
+  border-color: rgba(255,255,255,.25);
+}
+
 .bb-iconBtn:link,
 .bb-iconBtn:visited{
   color: rgba(234,240,255,.9);
   text-decoration:none;
 }
-.bb-iconBtnEmoji{
-  font-size:18px;
-  line-height:1;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-}
-.bb-iconBtn{
-  font-size: 18px;     /* forces same glyph size */
-  line-height: 1;      /* removes tiny vertical differences */
-}
-
-.bb-iconGlyph{
-  display: block;      /* makes Link + button render identically */
-  transform: translateY(-1px); /* tiny optical centering */
-}
-
-
 
 /* =========================================================
    BOARD
@@ -203,7 +194,7 @@ button{ font-family: inherit; cursor: pointer; }
 
 .bb-colBody{
   position:relative;
-  pointer-events:none; /* prevents invisible column layer stealing clicks */
+  pointer-events:none;
 }
 
 /* Re-enable clicks on actual bubbles */
@@ -447,10 +438,10 @@ button{ font-family: inherit; cursor: pointer; }
 .bb-modalOverlay{
   position: fixed;
   inset: 0;
-  z-index: 2147483646 !important;
-  background: rgba(0,0,0,.94) !important;
-  backdrop-filter: blur(18px) !important;
-  -webkit-backdrop-filter: blur(18px) !important;
+  z-index: 9999;
+  background: rgba(0,0,0,.92); /* Dark dimmed bg */
+  backdrop-filter: blur(12px); /* Blur the content behind the overlay */
+  -webkit-backdrop-filter: blur(12px);
 
   display:flex;
   align-items:center;
@@ -460,21 +451,22 @@ button{ font-family: inherit; cursor: pointer; }
 }
 
 .bb-modalCard{
-  position: relative !important;
-  z-index: 2147483647 !important;
+  position: relative;
+  z-index: 10000;
 
-  width: min(560px, 92vw) !important;
-  max-height: 90vh !important;
-  overflow-y: auto !important;
+  width: min(560px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
 
-  border-radius: 18px !important;
-  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.18);
 
-  background: rgba(10,13,26,1) !important;
-  box-shadow: 0 24px 80px rgba(0,0,0,.70) !important;
+  /* FIX: Solid background so brackets don't bleed through */
+  background: var(--bg0); 
+  box-shadow: 0 24px 80px rgba(0,0,0,.70);
 
-  isolation:isolate !important;
-  pointer-events:auto !important;
+  isolation:isolate;
+  pointer-events:auto;
 }
 
 .bb-modalHeader{
@@ -483,6 +475,7 @@ button{ font-family: inherit; cursor: pointer; }
   justify-content:space-between;
   padding:14px 16px;
   border-bottom: 1px solid rgba(255,255,255,.10);
+  background: var(--bg0);
 }
 .bb-modalTitle{ font-size:20px; font-weight:900; }
 
@@ -503,7 +496,20 @@ button{ font-family: inherit; cursor: pointer; }
   background: rgba(255,255,255,.12);
 }
 
-.bb-modalBody{ padding:14px 16px 10px; }
+.bb-modalBody{
+  padding:14px 16px 10px;
+  background: var(--bg0); /* Ensure body is also solid */
+}
+
+/* Fix for Modal Images */
+.bb-modalBody img {
+  width: 100%;
+  max-height: 340px;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+  margin-bottom: 14px;
+}
 
 .bb-modalSection{
   margin-top:10px;
@@ -532,6 +538,7 @@ button{ font-family: inherit; cursor: pointer; }
   display:flex;
   justify-content:flex-end;
   border-top: 1px solid rgba(255,255,255,.10);
+  background: var(--bg0);
 }
 
 .bb-modalBtn{
@@ -587,7 +594,7 @@ button{ font-family: inherit; cursor: pointer; }
 
 .bb-archiveTile{
   width: 100%;
-  max-width: 1100px; /* optional cap so it doesn’t feel wider than the banner on huge screens */
+  max-width: 1100px;
 
   display:flex;
   align-items:center;
@@ -782,87 +789,4 @@ button{ font-family: inherit; cursor: pointer; }
     visibility: hidden !important;
     pointer-events: none !important;
   }
-}
-/* ===== FINAL OVERRIDES (HARD) ===== */
-
-/* 1) Force Info button to visually match Archive */
-button.bb-iconBtn{
-  font-size: 20px !important;
-  line-height: 1 !important;
-}
-
-/* 2) Stop ANY modal transparency/bleed */
-.bb-modalOverlay{
-  background: rgba(0,0,0,.94) !important;
-}
-.bb-modalCard{
-  background-color: #0a0d1a !important;
-  opacity: 1 !important;
-  isolation: isolate !important;
-}
-.bb-modalHeader,
-.bb-modalBody,
-.bb-modalFooter{
-  background-color: #0a0d1a !important;
-}
-
-/* 3) Crop any modal poster image */
-.bb-modalOverlay img{
-  width: 100% !important;
-  max-height: 340px !important;
-  height: 340px !important;
-  object-fit: cover !important;
-  display: block !important;
-}
-@media (max-width: 768px){
-  .bb-modalOverlay img{
-    height: 240px !important;
-    max-height: 240px !important;
-  }
-}
-/* =========================================================
-   FINAL OVERRIDES — HOME INFO BUTTON + MODAL BLEED FIX
-   ========================================================= */
-
-/* Make the header icon buttons match exactly (Link vs button glyph differences) */
-.bb-bannerRight .bb-iconBtn{
-  width: 44px !important;
-  height: 44px !important;
-  display: inline-flex !important;   /* Link can get overridden; force identical layout */
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-  line-height: 1 !important;
-}
-
-/* Boost the ⓘ optical size so it matches the 📁 emoji */
-.bb-bannerRight button.bb-iconBtn{
-  font-size: 22px !important;
-}
-
-/* HARD: stop any “see-through” effect inside the HOME info modal card */
-.bb-modalOverlay{
-  z-index: 2147483646 !important;
-}
-.bb-modalCard{
-  z-index: 2147483647 !important;
-  background: #0a0d1a !important;  /* solid */
-  opacity: 1 !important;
-  isolation: isolate !important;
-}
-
-/* Ensure inner areas are also solid (prevents any weird transparency/overlay artifacts) */
-.bb-modalHeader,
-.bb-modalBody,
-.bb-modalFooter{
-  background: #0a0d1a !important;
-}
-
-/* Extra safety: paint a solid layer behind modal contents */
-.bb-modalCard::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:#0a0d1a;
-  z-index:-1;
 }
