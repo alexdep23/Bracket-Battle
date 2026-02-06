@@ -768,6 +768,62 @@ button{ font-family: inherit; cursor: pointer; }
     justify-content: center;
   }
 
+    /* =========================================================
+     MOBILE — CONDENSE BRACKET SPACING
+     ========================================================= */
+
+  /* tighten outer container */
+  .bb-page{
+    padding: 12px 12px 18px !important;
+  }
+
+  .bb-boardWrap{
+    margin-top: 12px !important;
+    padding: 10px !important;
+  }
+
+  /* tighten round headers */
+  .bb-colHeader{
+    margin: 6px 0 6px 6px !important;
+    font-size: 12px !important;
+    letter-spacing: .28em !important;
+  }
+
+  /* tighten bubbles */
+  .bb-bubble{
+    margin: 4px 0 !important;
+  }
+
+  .bb-bubbleInner{
+    padding: 8px 8px !important;          /* was 10px 10px */
+    grid-template-columns: 58px 1fr 86px !important; /* slightly tighter */
+    gap: 4px !important;
+  }
+
+  /* slightly smaller text */
+  .bb-teamName{
+    font-size: 13px !important;
+  }
+  .bb-seedNum{
+    font-size: 16px !important;
+  }
+
+  /* reduce space taken by meta row */
+  .bb-metaRow{
+    height: 12px !important;
+    font-size: 11px !important;
+  }
+  .bb-metaRowEmpty{
+    display: none !important; /* if it's empty, don't reserve space */
+  }
+
+  /* vote pill a bit tighter */
+  .bb-voteDisabled{
+    min-height: 30px !important;
+    padding: 5px 10px !important;
+    font-size: 12px !important;
+  }
+
   /* Footer */
   .bb-footerWrap{ padding: 12px 16px 16px !important; }
 
