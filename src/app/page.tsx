@@ -80,14 +80,9 @@ export default async function Home() {
     return <main className="bb-page">No active topic</main>;
   }
 
-  const scheduledRound = activeRoundFromDay(now);
+  const currentRound = Math.min(4, Math.max(1, topic.current_round ?? 1));
+  const votingOpen = true; // keep always-open for now (or we can add rules later)
 
-  // NOTE:
-  // topic.current_round is DB truth (for future auto-advance).
-  // For NOW, the site is schedule-driven, so the live round = scheduledRound.
-  const currentRound = scheduledRound;
-
-  const votingOpen = true;
 
   const { data: matchupsData, error: matchupsError } = await supabase
     .from("matchups")
