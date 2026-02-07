@@ -118,7 +118,10 @@ export default function TeamBubble({
 
           <div className="bb-modalBody">
             <div className="bb-modalPills">
-              <span className="bb-pill">Seed {entry.seed}</span>
+            <span className="bb-pill">
+              <span className="bb-pillLabel">Seed</span>
+              <span className="bb-pillValue">{entry.seed}</span>
+            </span>
             </div>
 
             {imageUrl ? (
