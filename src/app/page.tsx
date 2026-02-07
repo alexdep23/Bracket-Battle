@@ -140,13 +140,20 @@ export default async function Home() {
 
   // ---------- DERIVE ADVANCEMENT (display-only) ----------
   function winnerOf(m: MatchupRow): Entry | null {
+    // ✅ handle byes / missing side
+    if (m.a_entry && !m.b_entry) return m.a_entry;
+    if (!m.a_entry && m.b_entry) return m.b_entry;
     if (!m.a_entry || !m.b_entry) return null;
 
     const aVotes = counts[`${m.id}:${m.a_entry.id}`] ?? 0;
     const bVotes = counts[`${m.id}:${m.b_entry.id}`] ?? 0;
 
     if (aVotes === 0 && bVotes === 0) return null;
-    if (aVotes === bVotes) return null;
+
+    // ✅ tie -> higher seed wins (lower number)
+    if (aVotes === bVotes) {
+      return m.a_entry.seed <= m.b_entry.seed ? m.a_entry : m.b_entry;
+    }
 
     return aVotes > bVotes ? m.a_entry : m.b_entry;
   }
@@ -187,8 +194,9 @@ export default async function Home() {
 
     const roundMatchups = byRound.get(r) ?? [];
     for (const m of roundMatchups) {
-      const prevA = prevWinners[m.matchup_index * 2 - 1] ?? null;
-      const prevB = prevWinners[m.matchup_index * 2] ?? null;
+      // ✅ FIX: your matchup_index is 0-based, so feeders are (idx*2) and (idx*2+1)
+      const prevA = prevWinners[m.matchup_index * 2] ?? null;
+      const prevB = prevWinners[m.matchup_index * 2 + 1] ?? null;
 
       const target = findDerived(r, m.matchup_index);
       if (!target) continue;
