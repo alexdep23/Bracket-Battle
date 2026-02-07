@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/advance?secret=$ADVANCE_SECRET",
+      "path": "/api/advance",
       "schedule": "5 5 * * 0,2,4,6"
     }
   ]

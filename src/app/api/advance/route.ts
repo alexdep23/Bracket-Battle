@@ -4,23 +4,24 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // server-only key
-);
+function env(name: string) {
+  const v = process.env[name];
+  if (!v) throw new Error(`${name} is missing`);
+  return v;
+}
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const secret = url.searchParams.get("secret");
-
-  if (!process.env.ADVANCE_SECRET || secret !== process.env.ADVANCE_SECRET) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  // allow only Vercel Cron calls
+  const isCron = req.headers.get("x-vercel-cron") === "1";
+  if (!isCron) {
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
-  const topicId = process.env.CURRENT_TOPIC_ID;
-  if (!topicId) {
-    return NextResponse.json({ ok: false, error: "Missing CURRENT_TOPIC_ID env var" }, { status: 500 });
-  }
+  const supabaseUrl = env("NEXT_PUBLIC_SUPABASE_URL");
+  const serviceKey = env("SUPABASE_SERVICE_ROLE_KEY");
+  const topicId = env("CURRENT_TOPIC_ID");
+
+  const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
   const { data, error } = await supabaseAdmin.rpc("advance_topic", {
     p_topic_id: topicId,
