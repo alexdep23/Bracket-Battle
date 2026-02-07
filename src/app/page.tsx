@@ -188,23 +188,23 @@ export default async function Home() {
     );
   }
 
-  for (let r = 2; r <= 4; r++) {
-    const prevWinners = winnersByRound[r - 1];
-    if (!prevWinners) continue;
+  for (let r = currentRound + 1; r <= 4; r++) {
+  const prevWinners = winnersByRound[r - 1];
+  if (!prevWinners) continue;
 
-    const roundMatchups = byRound.get(r) ?? [];
-    for (const m of roundMatchups) {
-      // ✅ FIX: your matchup_index is 0-based, so feeders are (idx*2) and (idx*2+1)
-      const prevA = prevWinners[m.matchup_index * 2] ?? null;
-      const prevB = prevWinners[m.matchup_index * 2 + 1] ?? null;
+  const roundMatchups = byRound.get(r) ?? [];
+  for (const m of roundMatchups) {
+    const prevA = prevWinners[m.matchup_index * 2 - 1] ?? null;
+    const prevB = prevWinners[m.matchup_index * 2] ?? null;
 
-      const target = findDerived(r, m.matchup_index);
-      if (!target) continue;
+    const target = findDerived(r, m.matchup_index);
+    if (!target) continue;
 
-      if (prevA) target.a_entry = prevA;
-      if (prevB) target.b_entry = prevB;
-    }
+    if (prevA) target.a_entry = prevA;
+    if (prevB) target.b_entry = prevB;
   }
+}
+
   // ------------------------------------------------------
 
   return (
