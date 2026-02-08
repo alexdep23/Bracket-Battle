@@ -858,3 +858,61 @@ button{ font-family: inherit; cursor: pointer; }
     pointer-events: none !important;
   }
 }
+/* =========================================================
+   RESTORE INFO BUTTON — EXACT ORIGINAL BEHAVIOR
+   (floating ⓘ on right side of bubble)
+   ========================================================= */
+
+/* Allow absolute positioning anchor */
+.bb-titleRow{
+  position: relative !important;
+}
+
+/* Do NOT clip the floating info button */
+.bb-titleWrap,
+.bb-titleRow{
+  overflow: visible !important;
+}
+
+/* Ensure title ellipsis leaves room for ⓘ */
+.bb-teamName{
+  padding-right: 38px !important;
+}
+
+/* Restore ⓘ button exactly where it was */
+.bb-infoBtn{
+  position: absolute !important;
+  right: -30px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 999px !important;
+
+  border: 1px solid rgba(255,255,255,0.5) !important;
+  background: rgba(255,255,255,.06) !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  color: #ffffff !important;
+
+  cursor: pointer !important;
+  z-index: 20 !important;
+  pointer-events: auto !important;
+}
+
+/* Hover state (unchanged from original) */
+.bb-infoBtn:hover{
+  border-color: #ffffff !important;
+  background: rgba(255,255,255,0.15) !important;
+}
+
+/* Hide ⓘ on placeholder / TBD entries (original behavior) */
+.bb-bubble.placeholder .bb-infoBtn{
+  display: none !important;
+}
