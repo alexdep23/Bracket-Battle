@@ -19,10 +19,10 @@
   --accent2:#8c7cff;
 
   /* DESKTOP BANNER KNOBS */
-  --logoY: 30px;       /* negative goes UP, positive goes DOWN */
-  --topicY: -190px;    /* tournament title up/down */
-  --metaY: -190px;     /* starts + voting status up/down */
-  --logoH: 450px;      /* logo height */
+  --logoY: 30px;
+  --topicY: -190px;
+  --metaY: -190px;
+  --logoH: 450px;
 }
 
 html, body { height: 100%; }
@@ -145,7 +145,7 @@ button{ font-family: inherit; cursor: pointer; }
   border-radius:12px;
   border:1px solid rgba(255,255,255,.16);
   background: rgba(255,255,255,.06);
-  display:inline-flex; /* Ensures Links and Buttons behave the same */
+  display:inline-flex;
   align-items:center;
   justify-content:center;
   opacity:.9;
@@ -153,7 +153,7 @@ button{ font-family: inherit; cursor: pointer; }
   color: rgba(234,240,255,.9);
   text-decoration:none;
   padding: 0;
-  font-size: 20px; /* Force consistent size for emoji/icon */
+  font-size: 20px;
   line-height: 1;
 }
 
@@ -273,7 +273,7 @@ button{ font-family: inherit; cursor: pointer; }
 }
 .bb-seedNudge{ transform: translate(-11px, -9px); }
 
-/* Center */
+/* Center (SINGLE, CORRECT version — enables ellipsis) */
 .bb-titleWrap{
   height:100%;
   min-width:0;
@@ -283,15 +283,57 @@ button{ font-family: inherit; cursor: pointer; }
   align-items:center;
   text-align:left;
   pointer-events:auto;
+  overflow:hidden; /* key */
 }
+
 .bb-titleRow{
   position:relative;
   width:100%;
   display:flex;
   align-items:center;
   justify-content:flex-start;
+  gap:10px;
+  min-width:0;     /* key */
   pointer-events:auto;
 }
+
+/* Wrapper around title button */
+.bb-teamNameWrap{
+  flex:1;
+  min-width:0;     /* key */
+  overflow:hidden; /* key */
+}
+
+/* Title-as-button (no white box) + truncation */
+.bb-teamNameBtn{
+  appearance:none;
+  -webkit-appearance:none;
+  background: transparent !important;
+  border:0 !important;
+  outline:none;
+  padding:0 !important;
+  margin:0 !important;
+  text-align:left;
+  width:100%;
+  color:inherit;
+  font:inherit;
+  line-height:inherit;
+  pointer-events:auto;
+  cursor:pointer;
+
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+
+.bb-teamNameBtn:focus-visible{
+  outline: 2px solid rgba(255,255,255,.35);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
 .bb-teamName{
   width:100%;
   min-width:0;
@@ -300,7 +342,7 @@ button{ font-family: inherit; cursor: pointer; }
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  padding-right:20px;
+  padding-right:0; /* IMPORTANT: do not add padding-right here */
   text-align:left;
 }
 
@@ -387,7 +429,7 @@ button{ font-family: inherit; cursor: pointer; }
 /* Hide info on placeholder/TBD bubbles */
 .bb-bubble.placeholder .bb-infoBtn{ display:none !important; }
 .bb-bubble.placeholder .bb-right{
-  visibility:hidden; /* keeps layout */
+  visibility:hidden;
   pointer-events:none;
 }
 .bb-bubble.placeholder .bb-teamName{
@@ -395,29 +437,6 @@ button{ font-family: inherit; cursor: pointer; }
   font-weight:900 !important;
   opacity:.95 !important;
   letter-spacing:0 !important;
-}
-
-/* Title-as-button (no white box) */
-.bb-teamNameBtn{
-  appearance:none;
-  -webkit-appearance:none;
-  background: transparent !important;
-  border:0 !important;
-  outline:none;
-  padding:0 !important;
-  margin:0 !important;
-  text-align:left;
-  width:100%;
-  color:inherit;
-  font:inherit;
-  line-height:inherit;
-  pointer-events:auto;
-  cursor:pointer;
-}
-.bb-teamNameBtn:focus-visible{
-  outline: 2px solid rgba(255,255,255,.35);
-  outline-offset: 2px;
-  border-radius: 6px;
 }
 
 /* =========================================================
@@ -438,9 +457,9 @@ button{ font-family: inherit; cursor: pointer; }
 .bb-modalOverlay{
   position: fixed;
   inset: 0;
-  z-index: 9999;
-  background: rgba(0,0,0,.92); /* Dark dimmed bg */
-  backdrop-filter: blur(12px); /* Blur the content behind the overlay */
+  z-index: 2147483646 !important;
+  background: rgba(0,0,0,.94) !important;
+  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 
   display:flex;
@@ -452,7 +471,7 @@ button{ font-family: inherit; cursor: pointer; }
 
 .bb-modalCard{
   position: relative;
-  z-index: 10000;
+  z-index: 2147483647 !important;
 
   width: min(560px, 92vw);
   max-height: 90vh;
@@ -461,8 +480,7 @@ button{ font-family: inherit; cursor: pointer; }
   border-radius: 18px;
   border: 1px solid rgba(255,255,255,.18);
 
-  /* FIX: Solid background so brackets don't bleed through */
-  background: var(--bg0); 
+  background: #0b1020 !important;
   box-shadow: 0 24px 80px rgba(0,0,0,.70);
 
   isolation:isolate;
@@ -475,7 +493,7 @@ button{ font-family: inherit; cursor: pointer; }
   justify-content:space-between;
   padding:14px 16px;
   border-bottom: 1px solid rgba(255,255,255,.10);
-  background: var(--bg0);
+  background: #0b1020;
 }
 .bb-modalTitle{ font-size:20px; font-weight:900; }
 
@@ -498,11 +516,11 @@ button{ font-family: inherit; cursor: pointer; }
 
 .bb-modalBody{
   padding:14px 16px 10px;
-  background: var(--bg0); /* Ensure body is also solid */
+  background: #0b1020;
 }
 
 /* Fix for Modal Images */
-.bb-modalBody img {
+.bb-modalImage{
   width: 100%;
   max-height: 340px;
   object-fit: cover;
@@ -538,7 +556,7 @@ button{ font-family: inherit; cursor: pointer; }
   display:flex;
   justify-content:flex-end;
   border-top: 1px solid rgba(255,255,255,.10);
-  background: var(--bg0);
+  background: #0b1020;
 }
 
 .bb-modalBtn{
@@ -553,6 +571,45 @@ button{ font-family: inherit; cursor: pointer; }
 .bb-modalBtn:hover{
   border-color: rgba(255,255,255,.28);
   background: rgba(255,255,255,.10);
+}
+
+/* Make ⓘ match 📁 visually (same box, bigger glyph) */
+.bb-bannerRight button.bb-iconBtn{
+  font-size: 24px !important;
+}
+
+/* Seed pill container */
+.bb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 6px 12px;
+  border-radius: 999px;
+
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.14),
+    rgba(255,255,255,0.06)
+  );
+
+  border: 1px solid rgba(255,255,255,0.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bb-pillLabel {
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+.bb-pillValue {
+  font-weight: 800;
+  font-size: 13px;
+  color: #ffffff;
 }
 
 /* =========================================================
@@ -578,13 +635,13 @@ button{ font-family: inherit; cursor: pointer; }
    ARCHIVE (BUBBLE TILES)
    ========================================================= */
 .bb-archiveGrid{
-  max-width: 1200px;      /* wider than before */
-  margin: 18px auto 0;    /* centers the whole grid */
-  padding: 0 0 18px;      /* uses bb-page padding; no extra side padding */
+  max-width: 1200px;
+  margin: 18px auto 0;
+  padding: 0 0 18px;
   display: grid;
-  grid-template-columns: 1fr; /* single column always (clean + centered) */
+  grid-template-columns: 1fr;
   gap: 14px;
-  justify-items: center;  /* centers the tile */
+  justify-items: center;
 }
 
 @media (min-width: 900px){
@@ -598,9 +655,7 @@ button{ font-family: inherit; cursor: pointer; }
   width: 95%;
   max-width: 1200px;
   margin: 0 auto;
-
   grid-column: 1 / -1;
-
 
   display:flex;
   align-items:center;
@@ -672,7 +727,6 @@ button{ font-family: inherit; cursor: pointer; }
 
   .bb-col{ width: 100% !important; }
 
-  /* Round picker */
   .bb-mobileRounds{
     display:flex;
     gap:10px;
@@ -710,7 +764,6 @@ button{ font-family: inherit; cursor: pointer; }
     margin-left: 6px !important;
   }
 
-  /* Banner: stacked */
   .bb-banner{
     flex-direction: column !important;
     align-items: center !important;
@@ -748,7 +801,6 @@ button{ font-family: inherit; cursor: pointer; }
     gap: 10px !important;
   }
 
-  /* Mobile logo tuning */
   :root{
     --logoH: 280px;
     --logoY: 0px;
@@ -768,63 +820,19 @@ button{ font-family: inherit; cursor: pointer; }
     justify-content: center;
   }
 
-    /* =========================================================
-     MOBILE — CONDENSE BRACKET SPACING
-     ========================================================= */
+  /* Condense bracket spacing on mobile */
+  .bb-page{ padding: 12px 12px 18px !important; }
+  .bb-boardWrap{ margin-top: 12px !important; padding: 10px !important; }
+  .bb-colHeader{ margin: 6px 0 6px 6px !important; font-size: 12px !important; letter-spacing: .28em !important; }
+  .bb-bubble{ margin: 4px 0 !important; }
+  .bb-bubbleInner{ padding: 8px 8px !important; grid-template-columns: 58px 1fr 86px !important; gap: 4px !important; }
+  .bb-teamName{ font-size: 13px !important; }
+  .bb-seedNum{ font-size: 16px !important; }
+  .bb-metaRow{ height: 12px !important; font-size: 11px !important; }
+  .bb-metaRowEmpty{ display: none !important; }
 
-  /* tighten outer container */
-  .bb-page{
-    padding: 12px 12px 18px !important;
-  }
+  .bb-voteDisabled{ min-height: 30px !important; padding: 5px 10px !important; font-size: 12px !important; }
 
-  .bb-boardWrap{
-    margin-top: 12px !important;
-    padding: 10px !important;
-  }
-
-  /* tighten round headers */
-  .bb-colHeader{
-    margin: 6px 0 6px 6px !important;
-    font-size: 12px !important;
-    letter-spacing: .28em !important;
-  }
-
-  /* tighten bubbles */
-  .bb-bubble{
-    margin: 4px 0 !important;
-  }
-
-  .bb-bubbleInner{
-    padding: 8px 8px !important;          /* was 10px 10px */
-    grid-template-columns: 58px 1fr 86px !important; /* slightly tighter */
-    gap: 4px !important;
-  }
-
-  /* slightly smaller text */
-  .bb-teamName{
-    font-size: 13px !important;
-  }
-  .bb-seedNum{
-    font-size: 16px !important;
-  }
-
-  /* reduce space taken by meta row */
-  .bb-metaRow{
-    height: 12px !important;
-    font-size: 11px !important;
-  }
-  .bb-metaRowEmpty{
-    display: none !important; /* if it's empty, don't reserve space */
-  }
-
-  /* vote pill a bit tighter */
-  .bb-voteDisabled{
-    min-height: 30px !important;
-    padding: 5px 10px !important;
-    font-size: 12px !important;
-  }
-
-  /* Footer */
   .bb-footerWrap{ padding: 12px 16px 16px !important; }
 
   .bb-footerBubble{
@@ -835,7 +843,6 @@ button{ font-family: inherit; cursor: pointer; }
     box-sizing: border-box !important;
   }
 
-  /* Modal sizing */
   .bb-modalOverlay{ padding: 14px !important; }
 
   .bb-modalCard{
@@ -846,58 +853,8 @@ button{ font-family: inherit; cursor: pointer; }
     text-align: left !important;
   }
 
-  /* When modal open, hide sticky rounds */
   body.bb-modalOpen .bb-mobileRounds{
     visibility: hidden !important;
     pointer-events: none !important;
   }
-}
-/* ===== HARD MODAL TOP LAYER (RESTORE BASELINE BEHAVIOR) ===== */
-.bb-modalOverlay{
-  z-index: 2147483646 !important;
-  background: rgba(0,0,0,.94) !important;
-}
-
-.bb-modalCard{
-  z-index: 2147483647 !important;
-  background: #0b1020 !important; /* solid */
-}
-/* Make ⓘ match 📁 visually (same box, bigger glyph) */
-.bb-bannerRight button.bb-iconBtn{
-  font-size: 24px !important;
-}
-/* Seed pill container */
-.bb-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
-  padding: 6px 12px;
-  border-radius: 999px;
-
-  background: linear-gradient(
-    135deg,
-    rgba(255,255,255,0.14),
-    rgba(255,255,255,0.06)
-  );
-
-  border: 1px solid rgba(255,255,255,0.18);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
-
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-/* "Seed" label */
-.bb-pillLabel {
-  opacity: 0.75;
-  font-weight: 600;
-}
-
-/* Seed number (this is the pop) */
-.bb-pillValue {
-  font-weight: 800;
-  font-size: 13px;
-  color: #ffffff;
 }

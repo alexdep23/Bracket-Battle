@@ -177,7 +177,6 @@ export default function TeamBubble({
           {/* TITLE + META */}
           <div className="bb-titleWrap">
             <div className="bb-titleRow">
-              {/* IMPORTANT: wrapper so ellipsis works */}
               <div className="bb-teamNameWrap">
                 <button
                   type="button"
