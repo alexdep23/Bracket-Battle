@@ -118,10 +118,10 @@ export default function TeamBubble({
 
           <div className="bb-modalBody">
             <div className="bb-modalPills">
-            <span className="bb-pill">
-              <span className="bb-pillLabel">Seed</span>
-              <span className="bb-pillValue">{entry.seed}</span>
-            </span>
+              <span className="bb-pill">
+                <span className="bb-pillLabel">Seed</span>
+                <span className="bb-pillValue">{entry.seed}</span>
+              </span>
             </div>
 
             {imageUrl ? (
@@ -168,22 +168,27 @@ export default function TeamBubble({
         />
 
         <div className="bb-bubbleInner">
+          {/* SEED */}
           <div className="bb-seed bb-seedNudge">
             <div className="bb-seedLabel">SEED</div>
             <div className="bb-seedNum">{entry?.seed ?? "—"}</div>
           </div>
 
+          {/* TITLE + META */}
           <div className="bb-titleWrap">
             <div className="bb-titleRow">
-              <button
-                type="button"
-                className="bb-teamName bb-teamNameBtn"
-                title={entry?.name ?? "TBD"}
-                onClick={openInfo}
-                disabled={!entry}
-              >
-                {entry?.name ?? "TBD"}
-              </button>
+              {/* IMPORTANT: wrapper so ellipsis works */}
+              <div className="bb-teamNameWrap">
+                <button
+                  type="button"
+                  className="bb-teamName bb-teamNameBtn"
+                  title={entry?.name ?? "TBD"}
+                  onClick={openInfo}
+                  disabled={!entry}
+                >
+                  {entry?.name ?? "TBD"}
+                </button>
+              </div>
 
               <button
                 type="button"
@@ -208,6 +213,7 @@ export default function TeamBubble({
             )}
           </div>
 
+          {/* VOTE */}
           <div className="bb-right bb-rightNudge">
             {matchupId && entry ? (
               <VoteButton
