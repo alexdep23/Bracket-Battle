@@ -15,7 +15,10 @@ function format(ms: number) {
 export default function NextRoundTimer() {
   const router = useRouter();
 
-  const target = useMemo(() => getNextRoundChangeET(), []);
+  // ✅ allow recomputing target after a round flips
+  const [tickKey, setTickKey] = useState(0);
+
+  const target = useMemo(() => getNextRoundChangeET(), [tickKey]);
   const [mounted, setMounted] = useState(false);
   const [msLeft, setMsLeft] = useState<number>(0);
 
@@ -26,7 +29,11 @@ export default function NextRoundTimer() {
       const left = target.toMillis() - Date.now();
       setMsLeft(left);
 
-      if (left <= 0) router.refresh();
+      if (left <= 0) {
+        // refresh server data AND recompute next deadline
+        router.refresh();
+        setTickKey((k) => k + 1);
+      }
     };
 
     tick();
@@ -34,7 +41,6 @@ export default function NextRoundTimer() {
     return () => clearInterval(t);
   }, [router, target]);
 
-  // ✅ Prevent hydration mismatch: render a stable placeholder on the server
   if (!mounted) {
     return (
       <div className="text-sm opacity-80">

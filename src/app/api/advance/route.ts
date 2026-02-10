@@ -64,10 +64,11 @@ export async function GET(req: Request) {
     const now = new Date();
     const targetRound = scheduledRoundET(now);
 
-    // Find the active topic (latest started)
+    // ✅ Find the active topic (latest started). Ignore rows with null starts_at.
     const { data: topic, error: topicErr } = await supabaseAdmin
       .from("topics")
       .select("id, current_round, starts_at, title")
+      .not("starts_at", "is", null)
       .lte("starts_at", now.toISOString())
       .order("starts_at", { ascending: false })
       .limit(1)
@@ -76,6 +77,7 @@ export async function GET(req: Request) {
     if (topicErr) {
       return NextResponse.json({ ok: false, error: topicErr.message }, { status: 500 });
     }
+
     if (!topic) {
       return NextResponse.json({ ok: true, message: "No active topic to advance" });
     }
@@ -93,7 +95,7 @@ export async function GET(req: Request) {
       });
     }
 
-    // advance until caught up (handles: missed cron runs, deploy downtime, etc.)
+    // advance until caught up (handles missed cron runs)
     let advanced = 0;
     let round = currentRound;
 
@@ -106,8 +108,8 @@ export async function GET(req: Request) {
         return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
       }
 
-      // if function returns ok:false, stop and report
-      if (data && data.ok === false) {
+      // If function returns ok:false, stop and report
+      if (data && (data as any).ok === false) {
         return NextResponse.json({ ok: false, result: data }, { status: 500 });
       }
 
