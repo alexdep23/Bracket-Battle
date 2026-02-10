@@ -4,6 +4,7 @@ import NextRoundTimer from "@/components/NextRoundTimer";
 import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const TZ = "America/New_York";
 
@@ -27,13 +28,17 @@ function getETDay(now: Date) {
   return map[wd] ?? now.getDay();
 }
 
-/** Round schedule in ET */
-function activeRoundFromDay(now: Date) {
+/** Round schedule in ET (changes at 12:00 AM ET) */
+function scheduledRoundET(now: Date) {
   const day = getETDay(now);
   if (day === 0 || day === 1) return 1; // Sun/Mon
   if (day === 2 || day === 3) return 2; // Tue/Wed
   if (day === 4 || day === 5) return 3; // Thu/Fri
   return 4; // Sat
+}
+
+function clampRound(n: number) {
+  return Math.min(4, Math.max(1, n));
 }
 
 type Topic = {
@@ -66,42 +71,88 @@ type VoteRow = {
 
 export default async function Home() {
   const now = new Date();
+  const nowIso = now.toISOString();
 
-  // ✅ pick most recent topic that has started
-  const { data: topic, error: topicError } = await supabase
+  // 1) Pull the last couple started topics, newest first
+  const { data: topics, error: topicsError } = await supabase
     .from("topics")
-    .select("*")
-    .lte("starts_at", now.toISOString())
+    .select("id,title,starts_at,current_round")
+    .not("starts_at", "is", null)
+    .lte("starts_at", nowIso)
     .order("starts_at", { ascending: false })
-    .limit(1)
-    .single<Topic>();
+    .limit(2);
 
-  if (topicError || !topic) {
+  if (topicsError || !topics?.length) {
     return <main className="bb-page">No active topic</main>;
   }
 
-  const currentRound = Math.min(4, Math.max(1, topic.current_round ?? 1));
-  const votingOpen = true; // keep always-open for now (or we can add rules later)
+  // 2) Pick the first topic that actually has Round 1 entries populated.
+  //    This prevents the banner switching early to a new topic while matchups are still TBD.
+  let topic: Topic | null = null;
+  let matchupsData: any[] | null = null;
 
-
-  const { data: matchupsData, error: matchupsError } = await supabase
-    .from("matchups")
-    .select(
-      `
+  for (const candidate of topics as Topic[]) {
+    const { data, error } = await supabase
+      .from("matchups")
+      .select(
+        `
         id,
         round,
         matchup_index,
         a_entry:entries!matchups_a_entry_id_fkey ( id, name, seed, description, image_url ),
         b_entry:entries!matchups_b_entry_id_fkey ( id, name, seed, description, image_url )
       `
-    )
-    .eq("topic_id", topic.id)
-    .order("round", { ascending: true })
-    .order("matchup_index", { ascending: true });
+      )
+      .eq("topic_id", candidate.id)
+      .order("round", { ascending: true })
+      .order("matchup_index", { ascending: true });
 
-  if (matchupsError) {
-    return <main className="bb-page">Error loading matchups</main>;
+    if (error) continue;
+
+    const hasAnyRealRound1 =
+      (data ?? []).some((m: any) => Number(m.round) === 1 && (m.a_entry || m.b_entry)) ?? false;
+
+    if (hasAnyRealRound1) {
+      topic = candidate;
+      matchupsData = data ?? [];
+      break;
+    }
   }
+
+  // If newest is empty and previous also empty, just use newest anyway (shows TBD rather than crashing)
+  if (!topic) {
+    topic = (topics[0] as Topic) ?? null;
+    const { data, error } = await supabase
+      .from("matchups")
+      .select(
+        `
+        id,
+        round,
+        matchup_index,
+        a_entry:entries!matchups_a_entry_id_fkey ( id, name, seed, description, image_url ),
+        b_entry:entries!matchups_b_entry_id_fkey ( id, name, seed, description, image_url )
+      `
+      )
+      .eq("topic_id", topic?.id ?? "")
+      .order("round", { ascending: true })
+      .order("matchup_index", { ascending: true });
+
+    if (error || !topic) {
+      return <main className="bb-page">No active topic</main>;
+    }
+    matchupsData = data ?? [];
+  }
+
+  // 3) Compute current round:
+  //    - DB round = what cron/RPC advanced to
+  //    - Scheduled round = what your ET calendar says it *should* be
+  //    Use whichever is further along so the site "keeps moving" even if cron fails.
+  const dbRound = clampRound(topic.current_round ?? 1);
+  const schedRound = clampRound(scheduledRoundET(now));
+  const currentRound = Math.max(dbRound, schedRound);
+
+  // Keep always-open for now (you can add rules later)
+  const votingOpen = true;
 
   const baseMatchups: MatchupRow[] = (matchupsData ?? []).map((m: any) => ({
     id: String(m.id),
@@ -133,9 +184,9 @@ export default async function Home() {
     counts[key] = (counts[key] ?? 0) + 1;
   }
 
-  // ---------- DERIVE ADVANCEMENT (display-only) ----------
+  // ---------- DERIVE ADVANCEMENT (display-only, resilient) ----------
   function winnerOf(m: MatchupRow): Entry | null {
-    // ✅ handle byes / missing side
+    // byes / missing side
     if (m.a_entry && !m.b_entry) return m.a_entry;
     if (!m.a_entry && m.b_entry) return m.b_entry;
     if (!m.a_entry || !m.b_entry) return null;
@@ -143,9 +194,10 @@ export default async function Home() {
     const aVotes = counts[`${m.id}:${m.a_entry.id}`] ?? 0;
     const bVotes = counts[`${m.id}:${m.b_entry.id}`] ?? 0;
 
+    // if nobody voted, don't invent a winner yet
     if (aVotes === 0 && bVotes === 0) return null;
 
-    // ✅ tie -> higher seed wins (lower number)
+    // tie -> higher seed wins (lower number)
     if (aVotes === bVotes) {
       return m.a_entry.seed <= m.b_entry.seed ? m.a_entry : m.b_entry;
     }
@@ -164,9 +216,8 @@ export default async function Home() {
     byRound.set(r, arr);
   }
 
+  // winners for completed rounds only (strictly before currentRound)
   const winnersByRound: Record<number, Record<number, Entry | null>> = {};
-
-  // compute winners for rounds strictly before the current scheduled round
   for (let r = 1; r < currentRound; r++) {
     winnersByRound[r] = {};
     const roundMatchups = byRound.get(r) ?? [];
@@ -175,31 +226,31 @@ export default async function Home() {
     }
   }
 
+  // Copy matchups then patch future rounds for display
   const derivedMatchups: MatchupRow[] = baseMatchups.map((m) => ({ ...m }));
 
   function findDerived(round: number, idx: number) {
-    return derivedMatchups.find(
-      (m) => m.round === round && m.matchup_index === idx
-    );
+    return derivedMatchups.find((m) => m.round === round && m.matchup_index === idx);
   }
 
-  for (let r = currentRound + 1; r <= 4; r++) {
-  const prevWinners = winnersByRound[r - 1];
-  if (!prevWinners) continue;
+  // Fill rounds 2..4 using winners from prior rounds (only exists for rounds < currentRound)
+  for (let r = 2; r <= 4; r++) {
+    const prevWinners = winnersByRound[r - 1];
+    if (!prevWinners) continue;
 
-  const roundMatchups = byRound.get(r) ?? [];
-  for (const m of roundMatchups) {
-    const prevA = prevWinners[m.matchup_index * 2 - 1] ?? null;
-    const prevB = prevWinners[m.matchup_index * 2] ?? null;
+    const roundMatchups = byRound.get(r) ?? [];
+    for (const m of roundMatchups) {
+      // matchup_index is 1-based in your DB
+      const prevA = prevWinners[m.matchup_index * 2 - 1] ?? null;
+      const prevB = prevWinners[m.matchup_index * 2] ?? null;
 
-    const target = findDerived(r, m.matchup_index);
-    if (!target) continue;
+      const target = findDerived(r, m.matchup_index);
+      if (!target) continue;
 
-    if (prevA) target.a_entry = prevA;
-    if (prevB) target.b_entry = prevB;
+      if (prevA) target.a_entry = prevA;
+      if (prevB) target.b_entry = prevB;
+    }
   }
-}
-
   // ------------------------------------------------------
 
   return (

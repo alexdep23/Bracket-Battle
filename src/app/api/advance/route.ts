@@ -4,63 +4,124 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const TZ = "America/New_York";
+
 function mustEnv(name: string) {
   const v = process.env[name];
   if (!v) throw new Error(`${name} is missing`);
   return v;
 }
 
+function getETWeekday(now: Date) {
+  const wd = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    weekday: "short",
+  }).format(now);
+
+  const map: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+
+  return map[wd] ?? now.getDay();
+}
+
+/**
+ * Schedule (ET):
+ * Round 1: Sun–Mon
+ * Round 2: Tue–Wed
+ * Round 3: Thu–Fri
+ * Final : Sat
+ */
+function scheduledRoundET(now: Date) {
+  const day = getETWeekday(now);
+  if (day === 0 || day === 1) return 1;
+  if (day === 2 || day === 3) return 2;
+  if (day === 4 || day === 5) return 3;
+  return 4;
+}
+
 export async function GET(req: Request) {
   try {
-    // 1) Only allow Vercel Cron
+    // allow cron + (optional) manual admin testing via secret header
     const isCron = req.headers.get("x-vercel-cron") === "1";
-    if (!isCron) {
-      return NextResponse.json(
-        { ok: false, error: "Forbidden" },
-        { status: 403 }
-      );
+    const secret = process.env.ADVANCE_SECRET;
+    const provided = req.headers.get("x-advance-secret");
+
+    if (!isCron && secret && provided !== secret) {
+      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 
-    // 2) Create admin client
     const supabaseUrl = mustEnv("NEXT_PUBLIC_SUPABASE_URL");
     const serviceKey = mustEnv("SUPABASE_SERVICE_ROLE_KEY");
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // 3) Find the active topic automatically
-    const { data: topic, error: topicError } = await supabaseAdmin
+    const now = new Date();
+    const targetRound = scheduledRoundET(now);
+
+    // Find the active topic (latest started)
+    const { data: topic, error: topicErr } = await supabaseAdmin
       .from("topics")
-      .select("id, current_round")
-      .lte("starts_at", new Date().toISOString())
-      .lt("current_round", 4)
+      .select("id, current_round, starts_at, title")
+      .lte("starts_at", now.toISOString())
       .order("starts_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (topicError || !topic) {
+    if (topicErr) {
+      return NextResponse.json({ ok: false, error: topicErr.message }, { status: 500 });
+    }
+    if (!topic) {
+      return NextResponse.json({ ok: true, message: "No active topic to advance" });
+    }
+
+    const currentRound = Number(topic.current_round ?? 1);
+
+    // already caught up
+    if (currentRound >= targetRound) {
       return NextResponse.json({
         ok: true,
-        message: "No active topic to advance",
+        topic_id: topic.id,
+        current_round: currentRound,
+        target_round: targetRound,
+        advanced: 0,
       });
     }
 
-    // 4) Advance exactly one round
-    const { data, error } = await supabaseAdmin.rpc("advance_topic", {
-      p_topic_id: topic.id,
-    });
+    // advance until caught up (handles: missed cron runs, deploy downtime, etc.)
+    let advanced = 0;
+    let round = currentRound;
 
-    if (error) {
-      return NextResponse.json(
-        { ok: false, error: error.message },
-        { status: 500 }
-      );
+    while (round < targetRound) {
+      const { data, error } = await supabaseAdmin.rpc("advance_topic", {
+        p_topic_id: topic.id,
+      });
+
+      if (error) {
+        return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      }
+
+      // if function returns ok:false, stop and report
+      if (data && data.ok === false) {
+        return NextResponse.json({ ok: false, result: data }, { status: 500 });
+      }
+
+      advanced += 1;
+      round += 1;
     }
 
-    // 5) Done
     return NextResponse.json({
       ok: true,
-      advanced_topic: topic.id,
-      from_round: topic.current_round,
-      result: data,
+      topic_id: topic.id,
+      from_round: currentRound,
+      to_round: round,
+      target_round: targetRound,
+      advanced,
     });
   } catch (e: any) {
     return NextResponse.json(
