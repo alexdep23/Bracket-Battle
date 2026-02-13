@@ -241,35 +241,40 @@ export default function BracketClient({
       return next;
     });
 
-    const { error } = await supabase.from("votes").insert({
-      matchup_id: matchupId,
-      voter_id: voterId,
-      choice_entry_id: entryId,
-    });
+try {
+  const res = await fetch("/api/vote", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      matchupId,
+      choiceEntryId: entryId,
+      voterId,
+    }),
+  });
 
-    if (error) {
-      const isDuplicate =
-        (error as any)?.code === "23505" ||
-        String(error.message).toLowerCase().includes("duplicate");
+  const json = await res.json();
 
-      // If duplicate, it just means user already voted. Keep UI disabled.
-      if (isDuplicate) return;
+  // duplicate vote → treat as already voted, keep UI disabled
+  if (res.status === 409) return;
 
-      // rollback on real error
-      setVoted((prev) => {
-        const n = new Set(prev);
-        n.delete(matchupId);
-        return n;
-      });
-      setCounts((prev) => {
-        const next = { ...prev };
-        const key = `${matchupId}:${entryId}`;
-        next[key] = Math.max(0, (next[key] ?? 1) - 1);
-        return next;
-      });
-      alert(`Vote failed: ${error.message}`);
-    }
+  if (!res.ok || !json.ok) {
+    throw new Error(json?.error ?? "Vote failed");
   }
+} catch (err: any) {
+  // rollback on real error
+  setVoted((prev) => {
+    const n = new Set(prev);
+    n.delete(matchupId);
+    return n;
+  });
+  setCounts((prev) => {
+    const next = { ...prev };
+    const key = `${matchupId}:${entryId}`;
+    next[key] = Math.max(0, (next[key] ?? 1) - 1);
+    return next;
+  });
+  alert(`Vote failed: ${err?.message ?? String(err)}`);
+}
 
   const headerStarts = new Date(topic.starts_at).toLocaleString();
 
