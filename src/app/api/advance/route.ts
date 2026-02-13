@@ -82,14 +82,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, message: "No active topic to advance" });
     }
 
-    const currentRound = Number(topic.current_round ?? 1);
-
     // already caught up
-    if (currentRound >= targetRound) {
+    let round = Number(topic.current_round ?? 1);
+    if (round >= targetRound) {
       return NextResponse.json({
         ok: true,
         topic_id: topic.id,
-        current_round: currentRound,
+        current_round: round,
         target_round: targetRound,
         advanced: 0,
       });
@@ -97,20 +96,32 @@ export async function GET(req: Request) {
 
     // advance until caught up (handles missed cron runs)
     let advanced = 0;
-    let round = currentRound;
+    let lastSkip: any = null;
 
     while (round < targetRound) {
-      const { data, error } = await supabaseAdmin.rpc("advance_topic", {
+      // ✅ NEW: finalize winners for the current round (sets matchups.winner_entry_id)
+      const { data: fin, error: finErr } = await supabaseAdmin.rpc("finalize_round", {
+        p_topic_id: topic.id,
+        p_round: round,
+      });
+
+      if (finErr) {
+        return NextResponse.json({ ok: false, error: finErr.message }, { status: 500 });
+      }
+
+      // ✅ Now advance one round (this creates next-round matchups + bumps topics.current_round)
+      const { data: adv, error: advErr } = await supabaseAdmin.rpc("advance_topic", {
         p_topic_id: topic.id,
       });
 
-      if (error) {
-        return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      if (advErr) {
+        return NextResponse.json({ ok: false, error: advErr.message }, { status: 500 });
       }
 
-      // If function returns ok:false, stop and report
-      if (data && (data as any).ok === false) {
-        return NextResponse.json({ ok: false, result: data }, { status: 500 });
+      // If we still can't advance, stop here (means winners are still missing)
+      if (adv && (adv as any).skipped === "round_not_complete") {
+        lastSkip = { finalize_round: fin, advance_topic: adv };
+        break;
       }
 
       advanced += 1;
@@ -120,10 +131,12 @@ export async function GET(req: Request) {
     return NextResponse.json({
       ok: true,
       topic_id: topic.id,
-      from_round: currentRound,
+      from_round: Number(topic.current_round ?? 1),
       to_round: round,
       target_round: targetRound,
       advanced,
+      stopped_reason: lastSkip ? "round_not_complete" : null,
+      debug: lastSkip,
     });
   } catch (e: any) {
     return NextResponse.json(
