@@ -87,7 +87,6 @@ export default async function Home() {
   }
 
   // 2) Pick the first topic that actually has Round 1 entries populated.
-  //    This prevents the banner switching early to a new topic while matchups are still TBD.
   let topic: Topic | null = null;
   let matchupsData: any[] | null = null;
 
@@ -110,7 +109,9 @@ export default async function Home() {
     if (error) continue;
 
     const hasAnyRealRound1 =
-      (data ?? []).some((m: any) => Number(m.round) === 1 && (m.a_entry || m.b_entry)) ?? false;
+      (data ?? []).some(
+        (m: any) => Number(m.round) === 1 && (m.a_entry || m.b_entry)
+      ) ?? false;
 
     if (hasAnyRealRound1) {
       topic = candidate;
@@ -119,9 +120,10 @@ export default async function Home() {
     }
   }
 
-  // If newest is empty and previous also empty, just use newest anyway (shows TBD rather than crashing)
+  // Fallback: use newest anyway
   if (!topic) {
     topic = (topics[0] as Topic) ?? null;
+
     const { data, error } = await supabase
       .from("matchups")
       .select(
@@ -143,15 +145,11 @@ export default async function Home() {
     matchupsData = data ?? [];
   }
 
-  // 3) Compute current round:
-  //    - DB round = what cron/RPC advanced to
-  //    - Scheduled round = what your ET calendar says it *should* be
-  //    Use whichever is further along so the site "keeps moving" even if cron fails.
+  // 3) Current round: DB vs schedule (keep moving if cron fails)
   const dbRound = clampRound(topic.current_round ?? 1);
   const schedRound = clampRound(scheduledRoundET(now));
   const currentRound = Math.max(dbRound, schedRound);
 
-  // Keep always-open for now (you can add rules later)
   const votingOpen = true;
 
   const baseMatchups: MatchupRow[] = (matchupsData ?? []).map((m: any) => ({
@@ -162,6 +160,7 @@ export default async function Home() {
     b_entry: m.b_entry ?? null,
   }));
 
+  // votes -> counts (for bars / UI)
   const matchupIds = baseMatchups.map((m) => m.id);
 
   const { data: voteRowsData, error: votesError } = await supabase
@@ -183,75 +182,6 @@ export default async function Home() {
     const key = `${v.matchup_id}:${v.choice_entry_id}`;
     counts[key] = (counts[key] ?? 0) + 1;
   }
-
-  // ---------- DERIVE ADVANCEMENT (display-only, resilient) ----------
-  function winnerOf(m: MatchupRow): Entry | null {
-    // byes / missing side
-    if (m.a_entry && !m.b_entry) return m.a_entry;
-    if (!m.a_entry && m.b_entry) return m.b_entry;
-    if (!m.a_entry || !m.b_entry) return null;
-
-    const aVotes = counts[`${m.id}:${m.a_entry.id}`] ?? 0;
-    const bVotes = counts[`${m.id}:${m.b_entry.id}`] ?? 0;
-
-    // if nobody voted, don't invent a winner yet
-    if (aVotes === 0 && bVotes === 0) return null;
-
-    // tie -> higher seed wins (lower number)
-    if (aVotes === bVotes) {
-      return m.a_entry.seed <= m.b_entry.seed ? m.a_entry : m.b_entry;
-    }
-
-    return aVotes > bVotes ? m.a_entry : m.b_entry;
-  }
-
-  const byRound = new Map<number, MatchupRow[]>();
-  for (const m of baseMatchups) {
-    const arr = byRound.get(m.round) ?? [];
-    arr.push(m);
-    byRound.set(m.round, arr);
-  }
-  for (const [r, arr] of byRound.entries()) {
-    arr.sort((a, b) => a.matchup_index - b.matchup_index);
-    byRound.set(r, arr);
-  }
-
-  // winners for completed rounds only (strictly before currentRound)
-  const winnersByRound: Record<number, Record<number, Entry | null>> = {};
-  for (let r = 1; r < currentRound; r++) {
-    winnersByRound[r] = {};
-    const roundMatchups = byRound.get(r) ?? [];
-    for (const m of roundMatchups) {
-      winnersByRound[r][m.matchup_index] = winnerOf(m);
-    }
-  }
-
-  // Copy matchups then patch future rounds for display
-  const derivedMatchups: MatchupRow[] = baseMatchups.map((m) => ({ ...m }));
-
-  function findDerived(round: number, idx: number) {
-    return derivedMatchups.find((m) => m.round === round && m.matchup_index === idx);
-  }
-
-  // Fill rounds 2..4 using winners from prior rounds (only exists for rounds < currentRound)
-  for (let r = 2; r <= 4; r++) {
-    const prevWinners = winnersByRound[r - 1];
-    if (!prevWinners) continue;
-
-    const roundMatchups = byRound.get(r) ?? [];
-    for (const m of roundMatchups) {
-      // matchup_index is 1-based in your DB
-      const prevA = prevWinners[m.matchup_index * 2 - 1] ?? null;
-      const prevB = prevWinners[m.matchup_index * 2] ?? null;
-
-      const target = findDerived(r, m.matchup_index);
-      if (!target) continue;
-
-      if (prevA) target.a_entry = prevA;
-      if (prevB) target.b_entry = prevB;
-    }
-  }
-  // ------------------------------------------------------
 
   return (
     <main className="bb-page">
@@ -290,7 +220,7 @@ export default async function Home() {
         currentRound={currentRound}
         votingOpen={votingOpen}
         votedMatchupIds={[]}
-        matchups={derivedMatchups as any}
+        matchups={baseMatchups as any}
         counts={counts}
       />
     </main>
