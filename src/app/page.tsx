@@ -185,6 +185,23 @@ export default async function Home() {
 
   return (
     <main className="bb-page">
+      {/* Maintenance banner */}
+      <div
+        style={{
+          margin: "12px auto 16px",
+          maxWidth: 1200,
+          padding: "12px 16px",
+          borderRadius: 12,
+          background: "rgba(255, 200, 200, 0.12)",
+          border: "1px solid rgba(255, 180, 180, 0.35)",
+          color: "rgba(255,255,255,0.9)",
+          textAlign: "center",
+          fontWeight: 600,
+        }}
+      >
+        Experiencing technical difficulties — please check back later.
+      </div>
+
       <div className="bb-banner">
         {/* LEFT */}
         <div className="bb-bannerLeft">

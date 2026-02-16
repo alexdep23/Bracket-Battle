@@ -1,188 +1,154 @@
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
+// src/app/archive/[id]/page.tsx
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
 import BracketBoard from "@/components/BracketBoard";
+import { supabase } from "@/lib/supabase";
 
-function supabaseAnon() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-}
+export const dynamic = "force-dynamic";
 
 type Topic = {
   id: string;
-  title: string;
-  starts_at: string;
-  current_round: number | null;
-  status: string | null;
+  title: string | null;
+  starts_at: string | null;
+  current_round?: number | null;
 };
 
-export default function ArchiveTopicPageClient() {
-  // next/navigation useParams
-  const { useParams } = require("next/navigation");
-  const params = useParams() as { id?: string };
+type Entry = {
+  id: string;
+  name: string;
+  seed: number;
+  description?: string | null;
+  image_url?: string | null;
+};
 
-  const topicId = params?.id;
+type MatchupRow = {
+  id: string;
+  round: number;
+  matchup_index: number;
+  a_entry: Entry | null;
+  b_entry: Entry | null;
+};
 
-  const supabase = useMemo(() => supabaseAnon(), []);
+type VoteRow = {
+  matchup_id: string;
+  choice_entry_id: string;
+};
 
-  const [loading, setLoading] = useState(true);
-  const [topic, setTopic] = useState<Topic | null>(null);
-  const [matchups, setMatchups] = useState<any[]>([]);
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [error, setError] = useState<string | null>(null);
+export default async function ArchiveTournamentPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const topicId = params.id;
 
-  useEffect(() => {
-    let alive = true;
+  const { data: topic, error: topicError } = await supabase
+    .from("topics")
+    .select("*")
+    .eq("id", topicId)
+    .single<Topic>();
 
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        if (!topicId) {
-          setLoading(false);
-          return;
-        }
-
-        const { data: t, error: tErr } = await supabase
-          .from("topics")
-          .select("id,title,starts_at,current_round,status")
-          .eq("id", topicId)
-          .maybeSingle();
-
-        if (tErr) throw new Error(tErr.message);
-        if (!t) throw new Error("Topic not found.");
-
-        const { data: m, error: mErr } = await supabase
-          .from("matchups")
-          .select(
-            `
-            id,
-            round,
-            matchup_index,
-            a_entry:entries!matchups_a_entry_id_fkey (
-              id,name,seed,description,image_url
-            ),
-            b_entry:entries!matchups_b_entry_id_fkey (
-              id,name,seed,description,image_url
-            )
-          `
-          )
-          .eq("topic_id", t.id)
-          .order("round", { ascending: true })
-          .order("matchup_index", { ascending: true });
-
-        if (mErr) throw new Error(mErr.message);
-
-        const matchupIds = (m ?? []).map((x: any) => x.id);
-
-        const { data: voteRows, error: vErr } = await supabase
-          .from("votes")
-          .select("matchup_id, choice_entry_id")
-          .in(
-            "matchup_id",
-            matchupIds.length ? matchupIds : ["00000000-0000-0000-0000-000000000000"]
-          );
-
-        if (vErr) throw new Error(vErr.message);
-
-        const c: Record<string, number> = {};
-        for (const v of voteRows ?? []) {
-          const key = `${v.matchup_id}:${v.choice_entry_id}`;
-          c[key] = (c[key] ?? 0) + 1;
-        }
-
-        if (!alive) return;
-        setTopic(t);
-        setMatchups(m ?? []);
-        setCounts(c);
-      } catch (e: any) {
-        if (!alive) return;
-        setError(e?.message ?? "Unknown error");
-      } finally {
-        if (!alive) return;
-        setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      alive = false;
-    };
-  }, [topicId, supabase]);
-
-  if (!topicId) {
-    return (
-      <main className="bb-page p-6 text-white">
-        <div className="text-2xl font-bold">Missing topic id.</div>
-        <div className="mt-4">
-          <Link href="/archive" className="underline">
-            Back
-          </Link>
-        </div>
-      </main>
-    );
+  if (topicError || !topic) {
+    return <main className="bb-page">Tournament not found.</main>;
   }
 
-  if (loading) {
-    return (
-      <main className="bb-page p-6 text-white">
-        <div className="text-2xl font-bold">Loading…</div>
-      </main>
-    );
+  const { data: matchupsData, error: matchupsError } = await supabase
+    .from("matchups")
+    .select(
+      `
+        id,
+        round,
+        matchup_index,
+        a_entry:entries!matchups_a_entry_id_fkey ( id, name, seed, description, image_url ),
+        b_entry:entries!matchups_b_entry_id_fkey ( id, name, seed, description, image_url )
+      `
+    )
+    .eq("topic_id", topic.id)
+    .order("round", { ascending: true })
+    .order("matchup_index", { ascending: true });
+
+  if (matchupsError) {
+    return <main className="bb-page">Error loading tournament</main>;
   }
 
-  if (error || !topic) {
-    return (
-      <main className="bb-page p-6 text-white">
-        <div className="text-2xl font-bold mb-3">Archive error</div>
-        <div className="opacity-80 mb-4">{error ?? "Topic not found."}</div>
-        <div>
-          <Link href="/archive" className="underline">
-            Back to archive
-          </Link>
-        </div>
-      </main>
+  const baseMatchups: MatchupRow[] = (matchupsData ?? []).map((m: any) => ({
+    id: String(m.id),
+    round: Number(m.round),
+    matchup_index: Number(m.matchup_index),
+    a_entry: m.a_entry ?? null,
+    b_entry: m.b_entry ?? null,
+  }));
+
+  const matchupIds = baseMatchups.map((m) => m.id);
+
+  const { data: voteRowsData, error: votesError } = await supabase
+    .from("votes")
+    .select("matchup_id, choice_entry_id")
+    .in(
+      "matchup_id",
+      matchupIds.length ? matchupIds : ["00000000-0000-0000-0000-000000000000"]
     );
+
+  if (votesError) {
+    return <main className="bb-page">Error loading votes</main>;
   }
+
+  const voteRows = (voteRowsData ?? []) as VoteRow[];
+
+  const counts: Record<string, number> = {};
+  for (const v of voteRows) {
+    const key = `${v.matchup_id}:${v.choice_entry_id}`;
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+
+  // archive renders topic’s current round (clamped)
+  const roundToRender = Math.min(4, Math.max(1, topic.current_round ?? 1));
 
   return (
     <main className="bb-page">
       <div className="bb-banner">
+        {/* LEFT */}
         <div className="bb-bannerLeft">
           <div className="bb-roundBig">Archive</div>
         </div>
 
+        {/* CENTER */}
         <div className="bb-bannerCenter">
           <div className="bb-bannerLogo">
             <img src="/logo.png" alt="Bracket Battle" className="bb-logoImg" />
           </div>
+
           <div className="bb-bannerTopic">
             <div className="bb-tourTitle">
-              {topic.title?.toUpperCase?.() ?? topic.title}
+              {(topic.title ?? "Tournament").toUpperCase()}
             </div>
           </div>
         </div>
 
+        {/* RIGHT */}
         <div className="bb-bannerRight">
-          <Link href="/archive" className="bb-iconBtn" aria-label="Back to archive">
+          <Link
+            href="/archive"
+            className="bb-iconBtn"
+            aria-label="Back to archive"
+            style={{ color: "inherit", textDecoration: "none" }}
+          >
             ←
           </Link>
-          <div className="bb-iconBtn" aria-hidden>
-            🗂️
-          </div>
+          <Link
+            href="/"
+            className="bb-iconBtn"
+            aria-label="Home"
+            style={{ color: "inherit", textDecoration: "none" }}
+          >
+            🏠
+          </Link>
         </div>
       </div>
 
       <BracketBoard
-        currentRound={Math.min(4, topic.current_round ?? 4)}
-        votingOpen={false}
+        currentRound={roundToRender}
+        votingOpen={false} // archive is read-only
         votedMatchupIds={[]}
-        matchups={matchups as any}
+        matchups={baseMatchups}
         counts={counts}
       />
     </main>
