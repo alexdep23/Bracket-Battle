@@ -148,7 +148,7 @@ export default async function ArchiveTournamentPage({
         currentRound={roundToRender}
         votingOpen={false} // archive is read-only
         votedMatchupIds={[]}
-        matchups={baseMatchups}
+        matchups={baseMatchups as any}
         counts={counts}
       />
     </main>
