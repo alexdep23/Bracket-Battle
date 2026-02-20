@@ -1,6 +1,7 @@
 // src/app/archive/[id]/page.tsx
 import Link from "next/link";
 import BracketBoard from "@/components/BracketBoard";
+import ArchiveWinnerModal from "@/components/ArchiveWinnerModal";
 import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,8 @@ type Topic = {
   title: string | null;
   starts_at: string | null;
   current_round?: number | null;
+  status?: string | null;
+  winner_entry_id?: string | null;
 };
 
 type Entry = {
@@ -40,14 +43,27 @@ export default async function ArchiveTournamentPage({
 }) {
   const topicId = params.id;
 
+  // Load topic by id (never depend on "active")
   const { data: topic, error: topicError } = await supabase
     .from("topics")
-    .select("*")
+    .select("id,title,starts_at,current_round,status,winner_entry_id")
     .eq("id", topicId)
     .single<Topic>();
 
   if (topicError || !topic) {
     return <main className="bb-page">Tournament not found.</main>;
+  }
+
+  // Winner details (if present)
+  let winner: Entry | null = null;
+  if (topic.winner_entry_id) {
+    const { data: w } = await supabase
+      .from("entries")
+      .select("id,name,seed,description,image_url")
+      .eq("id", topic.winner_entry_id)
+      .maybeSingle<Entry>();
+
+    winner = w ?? null;
   }
 
   const { data: matchupsData, error: matchupsError } = await supabase
@@ -104,6 +120,13 @@ export default async function ArchiveTournamentPage({
 
   return (
     <main className="bb-page">
+      {/* Winner / interruption modal (auto-opens, X out to view bracket) */}
+      <ArchiveWinnerModal
+        title={topic.title ?? "Tournament"}
+        status={topic.status ?? ""}
+        winner={winner}
+      />
+
       <div className="bb-banner">
         {/* LEFT */}
         <div className="bb-bannerLeft">

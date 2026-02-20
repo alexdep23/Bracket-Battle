@@ -7,18 +7,15 @@ type Topic = {
   id: string;
   title: string | null;
   starts_at: string | null;
+  status: "queued" | "active" | "finished" | "archived" | string;
 };
 
 export default async function ArchivePage() {
-  const nowIso = new Date().toISOString();
-
   const { data, error } = await supabase
     .from("topics")
-    .select("id,title,starts_at")
-    .not("starts_at", "is", null)
-    .lte("starts_at", nowIso)
+    .select("id,title,starts_at,status")
+    .in("status", ["archived", "finished"]) // ✅ archive should show past tournaments only
     .order("starts_at", { ascending: false });
-
 
   if (error) {
     return <main className="bb-page">Error loading archive.</main>;
@@ -60,7 +57,6 @@ export default async function ArchivePage() {
           >
             📁
           </div>
-
         </div>
       </div>
 
@@ -80,7 +76,11 @@ export default async function ArchivePage() {
               : "Unknown";
 
             return (
-              <Link key={t.id} href={`/archive/${t.id}`} className="bb-archiveTile">
+              <Link
+                key={t.id}
+                href={`/archive/${t.id}`}
+                className="bb-archiveTile"
+              >
                 <div className="bb-archiveTileInner">
                   <div className="bb-archiveTitle">
                     {(t.title ?? "Untitled").toUpperCase()}
