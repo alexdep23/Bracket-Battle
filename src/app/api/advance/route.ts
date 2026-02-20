@@ -5,7 +5,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const TZ = "America/New_York";
-const MIDNIGHT_WINDOW_MINUTES = 12;
 
 function mustEnv(name: string) {
   const v = process.env[name];
@@ -13,7 +12,12 @@ function mustEnv(name: string) {
   return v;
 }
 
-function getETParts(now: Date): { weekday: number; hour: number; minute: number; dateKey: string } {
+function getETParts(now: Date): {
+  weekday: number;
+  hour: number;
+  minute: number;
+  dateKey: string;
+} {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: TZ,
     weekday: "short",
@@ -48,23 +52,20 @@ function getETParts(now: Date): { weekday: number; hour: number; minute: number;
   return { weekday, hour, minute, dateKey: `${year}-${month}-${day}` };
 }
 
-function isMidnightWindowET(now: Date) {
-  const { hour, minute } = getETParts(now);
-  return hour === 0 && minute >= 0 && minute < MIDNIGHT_WINDOW_MINUTES;
-}
-
 /**
  * Transition schedule (ET @ 00:00):
- * Sun: new topic starts (Round 1 begins)  <-- usually handled by your topic-switch logic
+ * Sun: activate next topic (Round 1 starts)
  * Tue: advance to Round 2
  * Thu: advance to Round 3
  * Sat: advance to Final
  */
-function transitionForWeekdayET(weekday: number): { kind: "topic_start" | "advance_round" | "none"; targetRound?: number } {
+function transitionForWeekdayET(
+  weekday: number
+): { kind: "topic_start" | "advance_round" | "none"; targetRound?: number } {
   if (weekday === 0) return { kind: "topic_start" }; // Sunday
   if (weekday === 2) return { kind: "advance_round", targetRound: 2 }; // Tuesday
   if (weekday === 4) return { kind: "advance_round", targetRound: 3 }; // Thursday
-  if (weekday === 6) return { kind: "advance_round", targetRound: 4 }; // Saturday (final)
+  if (weekday === 6) return { kind: "advance_round", targetRound: 4 }; // Saturday
   return { kind: "none" };
 }
 
@@ -84,30 +85,75 @@ export async function GET(req: Request) {
 
     const now = new Date();
     const et = getETParts(now);
-
-    // With frequent cron, only do work at midnight ET window (unless manual force)
-    if (!force && isCron && !isMidnightWindowET(now)) {
-      return NextResponse.json({ ok: true, noop: true, reason: "outside_midnight_window_et", et });
-    }
-
     const transition = transitionForWeekdayET(et.weekday);
 
-    // Only Tue/Thu/Sat do round transitions here.
-    // Sunday topic start is assumed to be handled by your existing topic switching logic.
-    if (!force && transition.kind !== "advance_round") {
-      return NextResponse.json({ ok: true, noop: true, reason: "no_round_transition_today", transition, et });
+    // On Hobby plan, cron is already daily at midnight ET (via 0 5 * * *).
+    // So we do NOT need a minute-window gate. We just no-op on non-transition days.
+    if (!force && transition.kind === "none") {
+      return NextResponse.json({
+        ok: true,
+        noop: true,
+        reason: "no_transition_today",
+        transition,
+        et,
+      });
     }
 
     const supabaseUrl = mustEnv("NEXT_PUBLIC_SUPABASE_URL");
     const serviceKey = mustEnv("SUPABASE_SERVICE_ROLE_KEY");
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // Find active topic (latest started)
+    // Helper: stamp last_advanced_at on a topic (run-once-per-day ET guard)
+    async function stamp(topicId: string) {
+      const { error } = await supabaseAdmin
+        .from("topics")
+        .update({ last_advanced_at: new Date().toISOString() })
+        .eq("id", topicId);
+      if (error) throw new Error(error.message);
+    }
+
+    // === SUNDAY: activate next queued topic ===
+    if (transition.kind === "topic_start" || (force && transition.kind !== "advance_round")) {
+      // Activate next topic whose starts_at is due
+      const { data: act, error: actErr } = await supabaseAdmin.rpc("activate_next_topic");
+
+      if (actErr) {
+        return NextResponse.json({ ok: false, error: actErr.message, et }, { status: 500 });
+      }
+
+      // If nothing activated, just no-op
+      if (!act || (act as any).activated === false) {
+        return NextResponse.json({
+          ok: true,
+          noop: true,
+          reason: "no_due_queued_topic_to_activate",
+          debug: act,
+          et,
+        });
+      }
+
+      // Stamp that newly activated topic so it won't re-run today
+      const newTopicId = (act as any).topic_id as string | undefined;
+      if (newTopicId) {
+        await stamp(newTopicId);
+      }
+
+      return NextResponse.json({
+        ok: true,
+        activated: true,
+        transition,
+        debug: act,
+        et,
+      });
+    }
+
+    // === Tue/Thu/Sat: advance one round ===
+
+    // Find the active topic by status (this is key!)
     const { data: topic, error: topicErr } = await supabaseAdmin
       .from("topics")
-      .select("id, title, current_round, starts_at, last_advanced_at")
-      .not("starts_at", "is", null)
-      .lte("starts_at", now.toISOString())
+      .select("id, title, current_round, last_advanced_at")
+      .eq("status", "active")
       .order("starts_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -117,10 +163,10 @@ export async function GET(req: Request) {
     }
 
     if (!topic) {
-      return NextResponse.json({ ok: true, noop: true, message: "No active topic", et });
+      return NextResponse.json({ ok: true, noop: true, reason: "no_active_topic", et });
     }
 
-    // Run-once-per-ET-date guard using topics.last_advanced_at
+    // Run-once-per-ET-date guard
     if (!force && topic.last_advanced_at) {
       const lastET = getETParts(new Date(topic.last_advanced_at));
       if (lastET.dateKey === et.dateKey) {
@@ -137,19 +183,11 @@ export async function GET(req: Request) {
     }
 
     const currentRound = Number(topic.current_round ?? 1);
-    const targetRound = transition.kind === "advance_round" ? transition.targetRound! : currentRound;
+    const targetRound = transition.targetRound ?? currentRound;
 
-    // If we're not behind the schedule target, just stamp last_advanced_at so we don't spam
+    // If we're already at/past the target round, just stamp and stop
     if (!force && currentRound >= targetRound) {
-      const { error: stampErr } = await supabaseAdmin
-        .from("topics")
-        .update({ last_advanced_at: new Date().toISOString() })
-        .eq("id", topic.id);
-
-      if (stampErr) {
-        return NextResponse.json({ ok: false, error: stampErr.message }, { status: 500 });
-      }
-
+      await stamp(topic.id);
       return NextResponse.json({
         ok: true,
         noop: true,
@@ -162,7 +200,7 @@ export async function GET(req: Request) {
       });
     }
 
-    // Finalize the current round, then advance one round
+    // Finalize winners for current round, then advance one round
     const { data: fin, error: finErr } = await supabaseAdmin.rpc("finalize_round", {
       p_topic_id: topic.id,
       p_round: currentRound,
@@ -180,15 +218,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: advErr.message, et }, { status: 500 });
     }
 
-    // Stamp last_advanced_at no matter what (success or skipped)
-    const { error: stampErr } = await supabaseAdmin
-      .from("topics")
-      .update({ last_advanced_at: new Date().toISOString() })
-      .eq("id", topic.id);
-
-    if (stampErr) {
-      return NextResponse.json({ ok: false, error: stampErr.message, et }, { status: 500 });
-    }
+    // Stamp last_advanced_at no matter what
+    await stamp(topic.id);
 
     if (adv && (adv as any).skipped) {
       return NextResponse.json({
