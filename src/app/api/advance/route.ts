@@ -74,7 +74,13 @@ function clampRound(n: number) {
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
+
+    // force=1 bypasses "already ran today" guard
     const force = url.searchParams.get("force") === "1";
+
+    // NEW: manual advancement must be explicitly allowed
+    // (prevents accidental early advancing during testing)
+    const allowAdvance = url.searchParams.get("allowAdvance") === "1";
 
     // allow cron + (optional) manual admin testing via secret header
     const isCron = req.headers.get("x-vercel-cron") === "1";
@@ -88,6 +94,11 @@ export async function GET(req: Request) {
       );
     }
 
+    // 🔒 Safety rule:
+    // - Cron is allowed to advance.
+    // - Manual requests are NOT allowed to advance unless allowAdvance=1.
+    const canAdvanceRounds = isCron || allowAdvance;
+
     const now = new Date();
     const et = getETParts(now);
     const targetRound = clampRound(scheduledRoundET(now));
@@ -96,7 +107,6 @@ export async function GET(req: Request) {
     const serviceKey = mustEnv("SUPABASE_SERVICE_ROLE_KEY");
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // Helper: stamp last_advanced_at on a topic (run-once-per-day ET guard)
     async function stamp(topicId: string) {
       const { error } = await supabaseAdmin
         .from("topics")
@@ -106,8 +116,6 @@ export async function GET(req: Request) {
     }
 
     // 1) Always try to activate due queued topic (safe no-op if none).
-    // This preserves your Sunday behavior, but also helps if you ever manually
-    // clear active topics: it will still activate the next due queued one.
     const { data: act, error: actErr } = await supabaseAdmin.rpc(
       "activate_next_topic"
     );
@@ -144,7 +152,7 @@ export async function GET(req: Request) {
       });
     }
 
-    // Run-once-per-ET-date guard
+    // Run-once-per-ET-date guard (cron safety)
     if (!force && topic.last_advanced_at) {
       const lastET = getETParts(new Date(topic.last_advanced_at));
       if (lastET.dateKey === et.dateKey) {
@@ -162,55 +170,72 @@ export async function GET(req: Request) {
     }
 
     // 3) Catch-up loop: if behind schedule, advance until caught up.
-    // This is the permanent fix that prevents missed Thu/Sat from leaving you stuck.
+    // IMPORTANT: This will ONLY run when canAdvanceRounds=true.
     let round = clampRound(Number(topic.current_round ?? 1));
-
     const steps: any[] = [];
     let advanced = 0;
 
-    while (round < targetRound) {
-      const { data: fin, error: finErr } = await supabaseAdmin.rpc(
-        "finalize_round",
-        {
-          p_topic_id: topic.id,
-          p_round: round,
-        }
-      );
-
-      if (finErr) {
-        return NextResponse.json(
-          { ok: false, error: finErr.message, et },
-          { status: 500 }
+    if (canAdvanceRounds) {
+      while (round < targetRound) {
+        const { data: fin, error: finErr } = await supabaseAdmin.rpc(
+          "finalize_round",
+          {
+            p_topic_id: topic.id,
+            p_round: round,
+          }
         );
-      }
 
-      const { data: adv, error: advErr } = await supabaseAdmin.rpc(
-        "advance_topic",
-        {
-          p_topic_id: topic.id,
+        if (finErr) {
+          return NextResponse.json(
+            { ok: false, error: finErr.message, et },
+            { status: 500 }
+          );
         }
-      );
 
-      if (advErr) {
-        return NextResponse.json(
-          { ok: false, error: advErr.message, et },
-          { status: 500 }
+        const { data: adv, error: advErr } = await supabaseAdmin.rpc(
+          "advance_topic",
+          {
+            p_topic_id: topic.id,
+          }
         );
+
+        if (advErr) {
+          return NextResponse.json(
+            { ok: false, error: advErr.message, et },
+            { status: 500 }
+          );
+        }
+
+        steps.push({ finalize_round: fin, advance_topic: adv });
+
+        if (adv && (adv as any).skipped) {
+          // e.g. round_not_complete, next_round_not_created
+          break;
+        }
+
+        advanced += 1;
+        round += 1;
       }
 
-      steps.push({ finalize_round: fin, advance_topic: adv });
-
-      if (adv && (adv as any).skipped) {
-        // e.g. round_not_complete, next_round_not_created
-        break;
-      }
-
-      advanced += 1;
-      round += 1;
+      // Stamp last_advanced_at once per ET day (even if we did nothing)
+      await stamp(topic.id);
     }
 
-    // Stamp last_advanced_at once per ET day (even if we did nothing)
-    await stamp(topic.id);
+    // If manual request is not allowed to advance, return status only (no stamping)
+    if (!canAdvanceRounds) {
+      return NextResponse.json({
+        ok: true,
+        noop: true,
+        reason: "manual_run_status_only",
+        note: "Add &allowAdvance=1 if you intend to advance rounds manually.",
+        topic_id: topic.id,
+        title: topic.title,
+        current_round: clampRound(Number(topic.current_round ?? 1)),
+        target_round: targetRound,
+        activated: act,
+        et,
+      });
+    }
 
     // If nothing was due (already at/past target), still report helpful info
     if (advanced === 0 && round >= targetRound) {

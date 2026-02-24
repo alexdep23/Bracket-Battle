@@ -234,7 +234,7 @@ export default async function Home() {
           fontWeight: 600,
         }}
       >
-        Experiencing technical difficulties — please check back later.
+        Beta Version - You may experience bugs or temporary issues, thank you for your patience!
       </div>
 
       <div className="bb-banner">
