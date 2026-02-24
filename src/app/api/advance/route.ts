@@ -53,20 +53,22 @@ function getETParts(now: Date): {
 }
 
 /**
- * Transition schedule (ET @ 00:00):
- * Sun: activate next topic (Round 1 starts)
- * Tue: advance to Round 2
- * Thu: advance to Round 3
- * Sat: advance to Final
+ * Round schedule in ET (changes at 12:00 AM ET):
+ * Round 1: Sun–Mon
+ * Round 2: Tue–Wed
+ * Round 3: Thu–Fri
+ * Final : Sat
  */
-function transitionForWeekdayET(
-  weekday: number
-): { kind: "topic_start" | "advance_round" | "none"; targetRound?: number } {
-  if (weekday === 0) return { kind: "topic_start" }; // Sunday
-  if (weekday === 2) return { kind: "advance_round", targetRound: 2 }; // Tuesday
-  if (weekday === 4) return { kind: "advance_round", targetRound: 3 }; // Thursday
-  if (weekday === 6) return { kind: "advance_round", targetRound: 4 }; // Saturday
-  return { kind: "none" };
+function scheduledRoundET(now: Date) {
+  const { weekday } = getETParts(now);
+  if (weekday === 0 || weekday === 1) return 1; // Sun/Mon
+  if (weekday === 2 || weekday === 3) return 2; // Tue/Wed
+  if (weekday === 4 || weekday === 5) return 3; // Thu/Fri
+  return 4; // Sat
+}
+
+function clampRound(n: number) {
+  return Math.min(4, Math.max(1, n));
 }
 
 export async function GET(req: Request) {
@@ -80,24 +82,15 @@ export async function GET(req: Request) {
     const provided = req.headers.get("x-advance-secret");
 
     if (!isCron && secret && provided !== secret) {
-      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { ok: false, error: "Forbidden" },
+        { status: 403 }
+      );
     }
 
     const now = new Date();
     const et = getETParts(now);
-    const transition = transitionForWeekdayET(et.weekday);
-
-    // On Hobby plan, cron is already daily at midnight ET (via 0 5 * * *).
-    // So we do NOT need a minute-window gate. We just no-op on non-transition days.
-    if (!force && transition.kind === "none") {
-      return NextResponse.json({
-        ok: true,
-        noop: true,
-        reason: "no_transition_today",
-        transition,
-        et,
-      });
-    }
+    const targetRound = clampRound(scheduledRoundET(now));
 
     const supabaseUrl = mustEnv("NEXT_PUBLIC_SUPABASE_URL");
     const serviceKey = mustEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -112,58 +105,43 @@ export async function GET(req: Request) {
       if (error) throw new Error(error.message);
     }
 
-    // === SUNDAY: activate next queued topic ===
-    if (transition.kind === "topic_start" || (force && transition.kind !== "advance_round")) {
-      // Activate next topic whose starts_at is due
-      const { data: act, error: actErr } = await supabaseAdmin.rpc("activate_next_topic");
-
-      if (actErr) {
-        return NextResponse.json({ ok: false, error: actErr.message, et }, { status: 500 });
-      }
-
-      // If nothing activated, just no-op
-      if (!act || (act as any).activated === false) {
-        return NextResponse.json({
-          ok: true,
-          noop: true,
-          reason: "no_due_queued_topic_to_activate",
-          debug: act,
-          et,
-        });
-      }
-
-      // Stamp that newly activated topic so it won't re-run today
-      const newTopicId = (act as any).topic_id as string | undefined;
-      if (newTopicId) {
-        await stamp(newTopicId);
-      }
-
-      return NextResponse.json({
-        ok: true,
-        activated: true,
-        transition,
-        debug: act,
-        et,
-      });
+    // 1) Always try to activate due queued topic (safe no-op if none).
+    // This preserves your Sunday behavior, but also helps if you ever manually
+    // clear active topics: it will still activate the next due queued one.
+    const { data: act, error: actErr } = await supabaseAdmin.rpc(
+      "activate_next_topic"
+    );
+    if (actErr) {
+      return NextResponse.json(
+        { ok: false, error: actErr.message, et },
+        { status: 500 }
+      );
     }
 
-    // === Tue/Thu/Sat: advance one round ===
-
-    // Find the active topic by status (this is key!)
+    // 2) Find the active topic by status
     const { data: topic, error: topicErr } = await supabaseAdmin
       .from("topics")
-      .select("id, title, current_round, last_advanced_at")
+      .select("id, title, current_round, last_advanced_at, starts_at")
       .eq("status", "active")
       .order("starts_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (topicErr) {
-      return NextResponse.json({ ok: false, error: topicErr.message }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: topicErr.message, et },
+        { status: 500 }
+      );
     }
 
     if (!topic) {
-      return NextResponse.json({ ok: true, noop: true, reason: "no_active_topic", et });
+      return NextResponse.json({
+        ok: true,
+        noop: true,
+        reason: "no_active_topic",
+        activated: act,
+        et,
+      });
     }
 
     // Run-once-per-ET-date guard
@@ -177,76 +155,94 @@ export async function GET(req: Request) {
           topic_id: topic.id,
           title: topic.title,
           last_advanced_at: topic.last_advanced_at,
+          activated: act,
           et,
         });
       }
     }
 
-    const currentRound = Number(topic.current_round ?? 1);
-    const targetRound = transition.targetRound ?? currentRound;
+    // 3) Catch-up loop: if behind schedule, advance until caught up.
+    // This is the permanent fix that prevents missed Thu/Sat from leaving you stuck.
+    let round = clampRound(Number(topic.current_round ?? 1));
 
-    // If we're already at/past the target round, just stamp and stop
-    if (!force && currentRound >= targetRound) {
-      await stamp(topic.id);
+    const steps: any[] = [];
+    let advanced = 0;
+
+    while (round < targetRound) {
+      const { data: fin, error: finErr } = await supabaseAdmin.rpc(
+        "finalize_round",
+        {
+          p_topic_id: topic.id,
+          p_round: round,
+        }
+      );
+
+      if (finErr) {
+        return NextResponse.json(
+          { ok: false, error: finErr.message, et },
+          { status: 500 }
+        );
+      }
+
+      const { data: adv, error: advErr } = await supabaseAdmin.rpc(
+        "advance_topic",
+        {
+          p_topic_id: topic.id,
+        }
+      );
+
+      if (advErr) {
+        return NextResponse.json(
+          { ok: false, error: advErr.message, et },
+          { status: 500 }
+        );
+      }
+
+      steps.push({ finalize_round: fin, advance_topic: adv });
+
+      if (adv && (adv as any).skipped) {
+        // e.g. round_not_complete, next_round_not_created
+        break;
+      }
+
+      advanced += 1;
+      round += 1;
+    }
+
+    // Stamp last_advanced_at once per ET day (even if we did nothing)
+    await stamp(topic.id);
+
+    // If nothing was due (already at/past target), still report helpful info
+    if (advanced === 0 && round >= targetRound) {
       return NextResponse.json({
         ok: true,
         noop: true,
         reason: "already_at_or_past_target_round",
         topic_id: topic.id,
         title: topic.title,
-        current_round: currentRound,
+        current_round: clampRound(Number(topic.current_round ?? 1)),
         target_round: targetRound,
-        et,
-      });
-    }
-
-    // Finalize winners for current round, then advance one round
-    const { data: fin, error: finErr } = await supabaseAdmin.rpc("finalize_round", {
-      p_topic_id: topic.id,
-      p_round: currentRound,
-    });
-
-    if (finErr) {
-      return NextResponse.json({ ok: false, error: finErr.message, et }, { status: 500 });
-    }
-
-    const { data: adv, error: advErr } = await supabaseAdmin.rpc("advance_topic", {
-      p_topic_id: topic.id,
-    });
-
-    if (advErr) {
-      return NextResponse.json({ ok: false, error: advErr.message, et }, { status: 500 });
-    }
-
-    // Stamp last_advanced_at no matter what
-    await stamp(topic.id);
-
-    if (adv && (adv as any).skipped) {
-      return NextResponse.json({
-        ok: true,
-        advanced: 0,
-        topic_id: topic.id,
-        title: topic.title,
-        current_round: currentRound,
-        target_round: targetRound,
-        skipped: (adv as any).skipped,
-        debug: { finalize_round: fin, advance_topic: adv },
+        activated: act,
         et,
       });
     }
 
     return NextResponse.json({
       ok: true,
-      advanced: 1,
       topic_id: topic.id,
       title: topic.title,
-      from_round: currentRound,
-      to_round: currentRound + 1,
+      from_round: clampRound(Number(topic.current_round ?? 1)),
+      to_round: round,
       target_round: targetRound,
-      debug: { finalize_round: fin, advance_topic: adv },
+      advanced,
+      activated: act,
+      steps,
       et,
     });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? String(e) }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: e?.message ?? String(e) },
+      { status: 500 }
+    );
   }
 }
