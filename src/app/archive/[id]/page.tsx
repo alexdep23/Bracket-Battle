@@ -21,6 +21,14 @@ type Entry = {
   image_url?: string | null;
 };
 
+type MatchupRaw = {
+  id: string;
+  round: number;
+  matchup_index: number;
+  a_entry_id: string | null;
+  b_entry_id: string | null;
+};
+
 type MatchupRow = {
   id: string;
   round: number;
@@ -41,7 +49,7 @@ export default async function ArchiveTournamentPage({
 }) {
   const topicId = params.id;
 
-  // Past-only: archived + finished (includes interrupted tournaments like Sitcoms)
+  // Past-only: archived + finished (includes interrupted archived tournaments)
   const { data: topic, error: topicError } = await supabase
     .from("topics")
     .select("id,title,starts_at,status,current_round,winner_entry_id")
@@ -57,37 +65,62 @@ export default async function ArchiveTournamentPage({
     return <main className="bb-page">Tournament not found.</main>;
   }
 
+  // 1) Load matchups WITHOUT FK-name-specific joins
   const { data: matchupsData, error: matchupsError } = await supabase
     .from("matchups")
-    .select(
-      `
-        id,
-        round,
-        matchup_index,
-        a_entry:entries!matchups_a_entry_id_fkey ( id, name, seed, description, image_url ),
-        b_entry:entries!matchups_b_entry_id_fkey ( id, name, seed, description, image_url )
-      `
-    )
+    .select("id, round, matchup_index, a_entry_id, b_entry_id")
     .eq("topic_id", topic.id)
     .order("round", { ascending: true })
     .order("matchup_index", { ascending: true });
 
   if (matchupsError) {
-  return (
-    <main className="bb-page">
-      Error loading tournament: {matchupsError.message}
-    </main>
-  );
-}
+    return (
+      <main className="bb-page">
+        Error loading tournament: {matchupsError.message}
+      </main>
+    );
+  }
 
-  const baseMatchups: MatchupRow[] = (matchupsData ?? []).map((m: any) => ({
+  const matchupsRaw = (matchupsData ?? []) as MatchupRaw[];
+
+  // 2) Load all referenced entries in one query
+  const entryIds = Array.from(
+    new Set(
+      matchupsRaw
+        .flatMap((m) => [m.a_entry_id, m.b_entry_id])
+        .filter((x): x is string => !!x)
+    )
+  );
+
+  let entryMap: Record<string, Entry> = {};
+  if (entryIds.length > 0) {
+    const { data: entriesData, error: entriesError } = await supabase
+      .from("entries")
+      .select("id,name,seed,description,image_url")
+      .in("id", entryIds);
+
+    if (entriesError) {
+      return (
+        <main className="bb-page">
+          Error loading entries: {entriesError.message}
+        </main>
+      );
+    }
+
+    for (const e of (entriesData ?? []) as Entry[]) {
+      entryMap[e.id] = e;
+    }
+  }
+
+  const baseMatchups: MatchupRow[] = matchupsRaw.map((m) => ({
     id: String(m.id),
     round: Number(m.round),
     matchup_index: Number(m.matchup_index),
-    a_entry: m.a_entry ?? null,
-    b_entry: m.b_entry ?? null,
+    a_entry: m.a_entry_id ? entryMap[m.a_entry_id] ?? null : null,
+    b_entry: m.b_entry_id ? entryMap[m.b_entry_id] ?? null : null,
   }));
 
+  // votes -> counts
   const matchupIds = baseMatchups.map((m) => m.id);
 
   const { data: voteRowsData, error: votesError } = await supabase
@@ -99,7 +132,7 @@ export default async function ArchiveTournamentPage({
     );
 
   if (votesError) {
-    return <main className="bb-page">Error loading votes</main>;
+    return <main className="bb-page">Error loading votes: {votesError.message}</main>;
   }
 
   const voteRows = (voteRowsData ?? []) as VoteRow[];
@@ -111,9 +144,7 @@ export default async function ArchiveTournamentPage({
   }
 
   const roundToRender = Math.min(4, Math.max(1, topic.current_round ?? 1));
-
-  const showInterrupted =
-    topic.status === "archived" && !topic.winner_entry_id;
+  const showInterrupted = topic.status === "archived" && !topic.winner_entry_id;
 
   return (
     <main className="bb-page">
@@ -154,7 +185,6 @@ export default async function ArchiveTournamentPage({
         </div>
       </div>
 
-      {/* ✅ Interrupted message (only for archived tournaments with no winner) */}
       {showInterrupted && (
         <div
           style={{
