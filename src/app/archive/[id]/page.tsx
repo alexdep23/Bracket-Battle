@@ -73,8 +73,12 @@ export default async function ArchiveTournamentPage({
     .order("matchup_index", { ascending: true });
 
   if (matchupsError) {
-    return <main className="bb-page">Error loading tournament</main>;
-  }
+  return (
+    <main className="bb-page">
+      Error loading tournament: {matchupsError.message}
+    </main>
+  );
+}
 
   const baseMatchups: MatchupRow[] = (matchupsData ?? []).map((m: any) => ({
     id: String(m.id),
