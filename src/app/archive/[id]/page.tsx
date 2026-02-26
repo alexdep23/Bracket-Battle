@@ -1,7 +1,5 @@
-// src/app/archive/[id]/page.tsx
 import Link from "next/link";
 import BracketBoard from "@/components/BracketBoard";
-import ArchiveWinnerModal from "@/components/ArchiveWinnerModal";
 import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -10,8 +8,8 @@ type Topic = {
   id: string;
   title: string | null;
   starts_at: string | null;
+  status: string;
   current_round?: number | null;
-  status?: string | null;
   winner_entry_id?: string | null;
 };
 
@@ -43,27 +41,20 @@ export default async function ArchiveTournamentPage({
 }) {
   const topicId = params.id;
 
-  // Load topic by id (never depend on "active")
+  // Past-only: archived + finished (includes interrupted tournaments like Sitcoms)
   const { data: topic, error: topicError } = await supabase
     .from("topics")
-    .select("id,title,starts_at,current_round,status,winner_entry_id")
+    .select("id,title,starts_at,status,current_round,winner_entry_id")
     .eq("id", topicId)
-    .single<Topic>();
+    .in("status", ["archived", "finished"])
+    .maybeSingle();
 
-  if (topicError || !topic) {
-    return <main className="bb-page">Tournament not found.</main>;
+  if (topicError) {
+    return <main className="bb-page">Error loading tournament.</main>;
   }
 
-  // Winner details (if present)
-  let winner: Entry | null = null;
-  if (topic.winner_entry_id) {
-    const { data: w } = await supabase
-      .from("entries")
-      .select("id,name,seed,description,image_url")
-      .eq("id", topic.winner_entry_id)
-      .maybeSingle<Entry>();
-
-    winner = w ?? null;
+  if (!topic) {
+    return <main className="bb-page">Tournament not found.</main>;
   }
 
   const { data: matchupsData, error: matchupsError } = await supabase
@@ -115,25 +106,18 @@ export default async function ArchiveTournamentPage({
     counts[key] = (counts[key] ?? 0) + 1;
   }
 
-  // archive renders topic’s current round (clamped)
   const roundToRender = Math.min(4, Math.max(1, topic.current_round ?? 1));
+
+  const showInterrupted =
+    topic.status === "archived" && !topic.winner_entry_id;
 
   return (
     <main className="bb-page">
-      {/* Winner / interruption modal (auto-opens, X out to view bracket) */}
-      <ArchiveWinnerModal
-        title={topic.title ?? "Tournament"}
-        status={topic.status ?? ""}
-        winner={winner}
-      />
-
       <div className="bb-banner">
-        {/* LEFT */}
         <div className="bb-bannerLeft">
           <div className="bb-roundBig">Archive</div>
         </div>
 
-        {/* CENTER */}
         <div className="bb-bannerCenter">
           <div className="bb-bannerLogo">
             <img src="/logo.png" alt="Bracket Battle" className="bb-logoImg" />
@@ -146,7 +130,6 @@ export default async function ArchiveTournamentPage({
           </div>
         </div>
 
-        {/* RIGHT */}
         <div className="bb-bannerRight">
           <Link
             href="/archive"
@@ -167,9 +150,28 @@ export default async function ArchiveTournamentPage({
         </div>
       </div>
 
+      {/* ✅ Interrupted message (only for archived tournaments with no winner) */}
+      {showInterrupted && (
+        <div
+          style={{
+            margin: "12px auto 16px",
+            maxWidth: 1200,
+            padding: "12px 16px",
+            borderRadius: 12,
+            background: "rgba(255, 200, 200, 0.12)",
+            border: "1px solid rgba(255, 180, 180, 0.35)",
+            color: "rgba(255,255,255,0.9)",
+            textAlign: "center",
+            fontWeight: 600,
+          }}
+        >
+          Voting was interrupted — no winner was chosen for this tournament.
+        </div>
+      )}
+
       <BracketBoard
         currentRound={roundToRender}
-        votingOpen={false} // archive is read-only
+        votingOpen={false}
         votedMatchupIds={[]}
         matchups={baseMatchups as any}
         counts={counts}
