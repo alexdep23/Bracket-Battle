@@ -39,58 +39,99 @@ type MatchupRow = {
 
 type VoteRow = { matchup_id: string; choice_entry_id: string };
 
-function Err({ stage, msg }: { stage: string; msg: string }) {
+function DebugBox({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <main className="bb-page">
-      <div style={{ maxWidth: 900, margin: "24px auto", lineHeight: 1.5 }}>
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>
-          Error loading tournament
-        </div>
-        <div style={{ opacity: 0.9, marginBottom: 8 }}>
-          Stage: <code>{stage}</code>
-        </div>
-        <pre
-          style={{
-            whiteSpace: "pre-wrap",
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 12,
-            padding: 12,
-            overflowX: "auto",
-          }}
-        >
-          {msg}
-        </pre>
-        <div style={{ marginTop: 12, opacity: 0.85 }}>
-          (Send me the Stage + message above.)
-        </div>
+    <div
+      style={{
+        maxWidth: 1100,
+        margin: "14px auto",
+        padding: "12px 14px",
+        borderRadius: 12,
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        color: "rgba(255,255,255,0.92)",
+      }}
+    >
+      <div style={{ fontWeight: 800, marginBottom: 6 }}>{title}</div>
+      <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+        {children}
       </div>
-    </main>
+    </div>
   );
 }
 
 export default async function ArchiveTournamentPage({
   params,
 }: {
-  params: { id: string };
+  params: { id?: string };
 }) {
-  const topicId = params.id;
+  const topicId = params?.id;
 
-if (!topicId || topicId === "undefined") {
-  return <main className="bb-page">Tournament not found.</main>;
-}
-  // 0) Topic lookup
+  // Hard guard: prevents UUID error on /archive/undefined
+  if (!topicId || topicId === "undefined") {
+    return (
+      <main className="bb-page">
+        <DebugBox title="Archive Debug">
+          param id = {String(topicId)}
+        </DebugBox>
+        Tournament not found.
+      </main>
+    );
+  }
+
   const { data: topic, error: topicError } = await supabase
     .from("topics")
     .select("id,title,starts_at,status,current_round,winner_entry_id")
     .eq("id", topicId)
-    .in("status", ["archived", "finished"])
     .maybeSingle();
 
-  if (topicError) return <Err stage="topic_select" msg={topicError.message} />;
-  if (!topic) return <main className="bb-page">Tournament not found.</main>;
+  if (topicError) {
+    return (
+      <main className="bb-page">
+        <DebugBox title="Archive Debug">
+          param id = {topicId}
+          <br />
+          topic_select error = {topicError.message}
+        </DebugBox>
+        Error loading tournament.
+      </main>
+    );
+  }
 
-  // 1) Matchups lookup (no FK join)
+  if (!topic) {
+    return (
+      <main className="bb-page">
+        <DebugBox title="Archive Debug">
+          param id = {topicId}
+          <br />
+          topic_select returned null
+        </DebugBox>
+        Tournament not found.
+      </main>
+    );
+  }
+
+  // Past-only policy for archive pages (what you want):
+  if (!["archived", "finished"].includes(topic.status)) {
+    return (
+      <main className="bb-page">
+        <DebugBox title="Archive Debug">
+          param id = {topicId}
+          <br />
+          found topic = {topic.title} ({topic.status})
+        </DebugBox>
+        Not in archive yet — status is "{topic.status}".
+      </main>
+    );
+  }
+
+  // Load matchups
   const { data: matchupsData, error: matchupsError } = await supabase
     .from("matchups")
     .select("id, round, matchup_index, a_entry_id, b_entry_id")
@@ -98,12 +139,24 @@ if (!topicId || topicId === "undefined") {
     .order("round", { ascending: true })
     .order("matchup_index", { ascending: true });
 
-  if (matchupsError)
-    return <Err stage="matchups_select" msg={matchupsError.message} />;
+  if (matchupsError) {
+    return (
+      <main className="bb-page">
+        <DebugBox title="Archive Debug">
+          param id = {topicId}
+          <br />
+          found topic = {topic.title} ({topic.status})
+          <br />
+          matchups_select error = {matchupsError.message}
+        </DebugBox>
+        Error loading tournament.
+      </main>
+    );
+  }
 
   const matchupsRaw = (matchupsData ?? []) as MatchupRaw[];
 
-  // 2) Entries lookup
+  // Load entries referenced by matchups
   const entryIds = Array.from(
     new Set(
       matchupsRaw
@@ -119,8 +172,18 @@ if (!topicId || topicId === "undefined") {
       .select("id,name,seed,description,image_url")
       .in("id", entryIds);
 
-    if (entriesError)
-      return <Err stage="entries_select" msg={entriesError.message} />;
+    if (entriesError) {
+      return (
+        <main className="bb-page">
+          <DebugBox title="Archive Debug">
+            param id = {topicId}
+            <br />
+            entries_select error = {entriesError.message}
+          </DebugBox>
+          Error loading tournament.
+        </main>
+      );
+    }
 
     for (const e of (entriesData ?? []) as Entry[]) entryMap[e.id] = e;
   }
@@ -133,7 +196,6 @@ if (!topicId || topicId === "undefined") {
     b_entry: m.b_entry_id ? entryMap[m.b_entry_id] ?? null : null,
   }));
 
-  // 3) Votes lookup
   const matchupIds = baseMatchups.map((m) => m.id);
 
   const { data: voteRowsData, error: votesError } = await supabase
@@ -144,7 +206,18 @@ if (!topicId || topicId === "undefined") {
       matchupIds.length ? matchupIds : ["00000000-0000-0000-0000-000000000000"]
     );
 
-  if (votesError) return <Err stage="votes_select" msg={votesError.message} />;
+  if (votesError) {
+    return (
+      <main className="bb-page">
+        <DebugBox title="Archive Debug">
+          param id = {topicId}
+          <br />
+          votes_select error = {votesError.message}
+        </DebugBox>
+        Error loading votes.
+      </main>
+    );
+  }
 
   const voteRows = (voteRowsData ?? []) as VoteRow[];
 
@@ -195,6 +268,12 @@ if (!topicId || topicId === "undefined") {
           </Link>
         </div>
       </div>
+
+      <DebugBox title="Archive Debug">
+        param id = {topicId}
+        <br />
+        topic = {topic.title} ({topic.status})
+      </DebugBox>
 
       {showInterrupted && (
         <div
