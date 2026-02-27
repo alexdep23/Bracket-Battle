@@ -76,6 +76,9 @@ export default async function ArchiveTournamentPage({
 }) {
   const topicId = params.id;
 
+if (!topicId || topicId === "undefined") {
+  return <main className="bb-page">Tournament not found.</main>;
+}
   // 0) Topic lookup
   const { data: topic, error: topicError } = await supabase
     .from("topics")

@@ -7,25 +7,31 @@ type Topic = {
   id: string;
   title: string | null;
   starts_at: string | null;
-  status: "queued" | "active" | "finished" | "archived" | string;
+  status: string;
 };
 
 export default async function ArchivePage() {
+  const nowIso = new Date().toISOString();
+
   const { data, error } = await supabase
     .from("topics")
     .select("id,title,starts_at,status")
-    .in("status", ["archived", "finished"]) // ✅ archive should show past tournaments only
+    .not("starts_at", "is", null)
+    .lte("starts_at", nowIso)
+    .in("status", ["archived", "finished"])
     .order("starts_at", { ascending: false });
 
   if (error) {
     return <main className="bb-page">Error loading archive.</main>;
   }
 
-  const topics = (data ?? []) as Topic[];
+  // ✅ Guard: drop any rows missing an id (should never happen, but prevents /undefined)
+  const topics = ((data ?? []) as Topic[]).filter(
+    (t) => typeof t.id === "string" && t.id.length > 0
+  );
 
   return (
     <main className="bb-page">
-      {/* banner (matches your style) */}
       <div className="bb-banner">
         <div className="bb-bannerLeft">
           <div className="bb-roundBig">Archive</div>
@@ -76,11 +82,7 @@ export default async function ArchivePage() {
               : "Unknown";
 
             return (
-              <Link
-                key={t.id}
-                href={`/archive/${t.id}`}
-                className="bb-archiveTile"
-              >
+              <Link key={t.id} href={`/archive/${t.id}`} className="bb-archiveTile">
                 <div className="bb-archiveTileInner">
                   <div className="bb-archiveTitle">
                     {(t.title ?? "Untitled").toUpperCase()}
