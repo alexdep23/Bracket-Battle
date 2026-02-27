@@ -25,10 +25,7 @@ export default async function ArchivePage() {
     return <main className="bb-page">Error loading archive.</main>;
   }
 
-  // ✅ Guard: drop any rows missing an id (should never happen, but prevents /undefined)
-  const topics = ((data ?? []) as Topic[]).filter(
-    (t) => typeof t.id === "string" && t.id.length > 0
-  );
+  const topics = (data ?? []) as Topic[];
 
   return (
     <main className="bb-page">
@@ -72,7 +69,7 @@ export default async function ArchivePage() {
             No past tournaments yet.
           </div>
         ) : (
-          topics.map((t) => {
+          topics.map((t, idx) => {
             const started = t.starts_at
               ? new Date(t.starts_at).toLocaleDateString(undefined, {
                   year: "numeric",
@@ -81,16 +78,48 @@ export default async function ArchivePage() {
                 })
               : "Unknown";
 
-            return (
-              <Link key={t.id} href={`/archive/${t.id}`} className="bb-archiveTile">
+            // ✅ Hard guard: if id is missing, show a non-clickable tile (never /undefined)
+            const safeId =
+              typeof t.id === "string" && t.id.length > 0 ? t.id : null;
+
+            const inner = (
+              <>
                 <div className="bb-archiveTileInner">
                   <div className="bb-archiveTitle">
                     {(t.title ?? "Untitled").toUpperCase()}
                   </div>
                   <div className="bb-archiveMeta">Started {started}</div>
-                </div>
 
-                <div className="bb-archiveCta">VIEW →</div>
+                  {/* TEMP DEBUG: remove later */}
+                  <div style={{ opacity: 0.6, fontSize: 12, marginTop: 6 }}>
+                    id: {String(t.id)} (index {idx})
+                  </div>
+                </div>
+                <div className="bb-archiveCta">
+                  {safeId ? "VIEW →" : "MISSING ID"}
+                </div>
+              </>
+            );
+
+            if (!safeId) {
+              return (
+                <div
+                  key={`missing-${idx}`}
+                  className="bb-archiveTile"
+                  style={{ cursor: "not-allowed", opacity: 0.65 }}
+                >
+                  {inner}
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={safeId}
+                href={`/archive/${safeId}`}
+                className="bb-archiveTile"
+              >
+                {inner}
               </Link>
             );
           })
