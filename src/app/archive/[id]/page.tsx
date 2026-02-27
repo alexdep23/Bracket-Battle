@@ -37,10 +37,37 @@ type MatchupRow = {
   b_entry: Entry | null;
 };
 
-type VoteRow = {
-  matchup_id: string;
-  choice_entry_id: string;
-};
+type VoteRow = { matchup_id: string; choice_entry_id: string };
+
+function Err({ stage, msg }: { stage: string; msg: string }) {
+  return (
+    <main className="bb-page">
+      <div style={{ maxWidth: 900, margin: "24px auto", lineHeight: 1.5 }}>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>
+          Error loading tournament
+        </div>
+        <div style={{ opacity: 0.9, marginBottom: 8 }}>
+          Stage: <code>{stage}</code>
+        </div>
+        <pre
+          style={{
+            whiteSpace: "pre-wrap",
+            background: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 12,
+            padding: 12,
+            overflowX: "auto",
+          }}
+        >
+          {msg}
+        </pre>
+        <div style={{ marginTop: 12, opacity: 0.85 }}>
+          (Send me the Stage + message above.)
+        </div>
+      </div>
+    </main>
+  );
+}
 
 export default async function ArchiveTournamentPage({
   params,
@@ -49,7 +76,7 @@ export default async function ArchiveTournamentPage({
 }) {
   const topicId = params.id;
 
-  // Past-only: archived + finished (includes interrupted archived tournaments)
+  // 0) Topic lookup
   const { data: topic, error: topicError } = await supabase
     .from("topics")
     .select("id,title,starts_at,status,current_round,winner_entry_id")
@@ -57,15 +84,10 @@ export default async function ArchiveTournamentPage({
     .in("status", ["archived", "finished"])
     .maybeSingle();
 
-  if (topicError) {
-    return <main className="bb-page">Error loading tournament.</main>;
-  }
+  if (topicError) return <Err stage="topic_select" msg={topicError.message} />;
+  if (!topic) return <main className="bb-page">Tournament not found.</main>;
 
-  if (!topic) {
-    return <main className="bb-page">Tournament not found.</main>;
-  }
-
-  // 1) Load matchups WITHOUT FK-name-specific joins
+  // 1) Matchups lookup (no FK join)
   const { data: matchupsData, error: matchupsError } = await supabase
     .from("matchups")
     .select("id, round, matchup_index, a_entry_id, b_entry_id")
@@ -73,17 +95,12 @@ export default async function ArchiveTournamentPage({
     .order("round", { ascending: true })
     .order("matchup_index", { ascending: true });
 
-  if (matchupsError) {
-    return (
-      <main className="bb-page">
-        Error loading tournament: {matchupsError.message}
-      </main>
-    );
-  }
+  if (matchupsError)
+    return <Err stage="matchups_select" msg={matchupsError.message} />;
 
   const matchupsRaw = (matchupsData ?? []) as MatchupRaw[];
 
-  // 2) Load all referenced entries in one query
+  // 2) Entries lookup
   const entryIds = Array.from(
     new Set(
       matchupsRaw
@@ -99,17 +116,10 @@ export default async function ArchiveTournamentPage({
       .select("id,name,seed,description,image_url")
       .in("id", entryIds);
 
-    if (entriesError) {
-      return (
-        <main className="bb-page">
-          Error loading entries: {entriesError.message}
-        </main>
-      );
-    }
+    if (entriesError)
+      return <Err stage="entries_select" msg={entriesError.message} />;
 
-    for (const e of (entriesData ?? []) as Entry[]) {
-      entryMap[e.id] = e;
-    }
+    for (const e of (entriesData ?? []) as Entry[]) entryMap[e.id] = e;
   }
 
   const baseMatchups: MatchupRow[] = matchupsRaw.map((m) => ({
@@ -120,7 +130,7 @@ export default async function ArchiveTournamentPage({
     b_entry: m.b_entry_id ? entryMap[m.b_entry_id] ?? null : null,
   }));
 
-  // votes -> counts
+  // 3) Votes lookup
   const matchupIds = baseMatchups.map((m) => m.id);
 
   const { data: voteRowsData, error: votesError } = await supabase
@@ -131,9 +141,7 @@ export default async function ArchiveTournamentPage({
       matchupIds.length ? matchupIds : ["00000000-0000-0000-0000-000000000000"]
     );
 
-  if (votesError) {
-    return <main className="bb-page">Error loading votes: {votesError.message}</main>;
-  }
+  if (votesError) return <Err stage="votes_select" msg={votesError.message} />;
 
   const voteRows = (voteRowsData ?? []) as VoteRow[];
 
